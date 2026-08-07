@@ -1,0 +1,9 @@
+{
+  "name": "freelance-evidencija-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Freelance Ledger — standalone web verzija Freelance Evidencija dashboarda, backed direktno na Notion API, deploy na Vercel.",
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}

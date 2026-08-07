@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freelance Ledger</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap');
+:root{
+  color-scheme: light;
+  --color-bg:#f2f2f3; --color-surface:#e9e9ea; --color-text:#1d1f20;
+  --color-accent:#5980a6; --color-divider:color-mix(in srgb,#1d1f20 16%,transparent);
+  --color-neutral-100:#f5f5f8; --color-neutral-200:#e7e7ea; --color-neutral-300:#d4d4d7;
+  --color-neutral-400:#b7b7ba; --color-neutral-600:#7a7a7d; --color-neutral-700:#5d5d60;
+  --color-neutral-800:#424244; --color-neutral-900:#2b2b2d;
+  --color-accent-100:#eef6ff; --color-accent-200:#d6ebff; --color-accent-300:#b5d9fd;
+  --color-accent-400:#94bce3; --color-accent-600:#597ea3; --color-accent-700:#416180;
+  --color-accent-800:#2c455d; --color-accent-900:#1d2d3d;
+  --font-heading:"Barlow Condensed",system-ui,sans-serif; --font-body:"Barlow",system-ui,sans-serif;
+  --shadow-lg:0 12px 32px color-mix(in srgb,#2b2b2d 22%,transparent);
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-size:15px;line-height:1.55;padding:0 0 80px}
+h1,h2,h3,h4,h5,h6{font-family:var(--font-heading);font-weight:600;line-height:1.12;letter-spacing:-.015em;margin:0 0 6.8px}
+h3{font-size:25px} h4{font-size:20px}
+h6{font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin:0}
+p{margin:0 0 10.2px}
+a{color:var(--color-accent)}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+::selection{background:color-mix(in srgb,var(--color-accent) 30%,transparent)}
+.blueprint{position:relative;border:1px solid var(--color-divider);border-radius:0}
+.blueprint>.corner{position:absolute;width:11px;height:11px;color:color-mix(in srgb,var(--color-text) 55%,transparent)}
+.blueprint>.corner::before,.blueprint>.corner::after{content:"";position:absolute;background:currentColor}
+.blueprint>.corner::before{left:5px;top:0;width:1px;height:100%}
+.blueprint>.corner::after{top:5px;left:0;width:100%;height:1px}
+.corner.tl{top:-6px;left:-6px}.corner.tr{top:-6px;right:-6px}.corner.bl{bottom:-6px;left:-6px}.corner.br{bottom:-6px;right:-6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;text-decoration:none;
+  font-family:var(--font-heading);font-weight:600;font-size:14px;line-height:1.2;color:var(--color-text);
+  background:transparent;border:1px solid var(--color-divider);border-radius:0;padding:6.8px 12.2px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--color-accent);color:var(--color-bg);border-color:var(--color-accent)}
+.btn-primary:hover{background:var(--color-accent-600)}
+.btn-primary:active{background:var(--color-accent-700)}
+.btn-secondary:hover{background:color-mix(in srgb,var(--color-text) 7%,transparent)}
+.btn-ghost{color:var(--color-accent);border-color:transparent;padding-inline:3.4px}
+.btn-ghost:hover{background:color-mix(in srgb,var(--color-accent) 10%,transparent)}
+.btn-icon{width:36px;height:36px;padding:0}
+.tag{display:inline-flex;align-items:center;font-size:11px;letter-spacing:.02em;padding:3px 10px;border-radius:0;white-space:nowrap}
+.tag-accent{background:var(--color-accent-100);color:var(--color-accent-800)}
+.tag-neutral{background:var(--color-neutral-100);color:var(--color-neutral-800)}
+.tag-outline{border:1px solid var(--color-accent);color:var(--color-accent)}
+.field>label{display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb,var(--color-text) 70%,transparent)}
+.input{width:100%;min-height:36px;padding:6px 10px;font:inherit;font-size:14px;color:var(--color-text);
+  caret-color:var(--color-accent);background:var(--color-surface);border:1px solid var(--color-divider);border-radius:0}
+.input:hover{border-color:color-mix(in srgb,var(--color-text) 45%,transparent)}
+.input:focus-visible{border-color:var(--color-accent);outline-offset:0}
+textarea.input{min-height:90px;resize:vertical}
+.seg{display:inline-flex;border:1px solid var(--color-divider)}
+.seg-opt{display:inline-flex;align-items:center;padding:7px 12px;font-size:13px;cursor:pointer;font-family:var(--font-heading);letter-spacing:.04em}
+.seg-opt+.seg-opt{border-left:1px solid var(--color-divider)}
+.seg-opt.on{background:var(--color-accent);color:var(--color-bg)}
+.seg-opt:not(.on):hover{background:color-mix(in srgb,var(--color-text) 7%,transparent)}
+.table{width:100%;border-collapse:collapse;font-size:14px}
+.table th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:color-mix(in srgb,var(--color-text) 60%,transparent);padding:6.8px;border-bottom:1px solid var(--color-divider)}
+.table td{padding:11px 7px;border-bottom:1px solid color-mix(in srgb,var(--color-text) 8%,transparent)}
+.table tbody tr:hover{background:color-mix(in srgb,var(--color-text) 4%,transparent)}
+.nav{display:flex;align-items:center;gap:22px;padding:18px 40px;border-bottom:1px solid var(--color-divider);flex-wrap:wrap}
+.nav-brand{font-family:var(--font-heading);font-weight:600;font-size:18px;letter-spacing:.02em;margin-right:auto;white-space:nowrap}
+.wrap{max-width:1440px;margin:0 auto;padding:34px 40px 0;display:flex;flex-direction:column;gap:44px}
+.sechd{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--color-divider);padding-bottom:9px;margin-bottom:18px;flex-wrap:wrap}
+.muted{font-size:12px;color:var(--color-neutral-600)}
+.kpi{padding:14px 16px 13px}
+.kpi .v{font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1;letter-spacing:-.02em}
+.kpi .l{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--color-neutral-700);line-height:1.35}
+.kpi .n{font-size:11.5px;color:var(--color-neutral-600);margin-top:4px}
+.gr{display:grid;grid-template-columns:288px 1fr}
+.grow{border-bottom:1px solid color-mix(in srgb,var(--color-text) 8%,transparent);cursor:pointer}
+.grow:hover{background:color-mix(in srgb,var(--color-text) 4%,transparent)}
+.status-msg{font-size:12px;margin-top:8px;color:var(--color-neutral-700)}
+.status-msg.error{color:#8c2f2f} .status-msg.ok{color:var(--color-accent-800)} .status-msg.warn{color:var(--color-accent-700)}
+.empty{color:var(--color-neutral-600);font-size:13px;padding:18px 0;text-align:center}
+.drawer-back{position:fixed;inset:0;background:color-mix(in srgb,var(--color-neutral-900) 46%,transparent);z-index:40;display:none}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(470px,94vw);background:var(--color-bg);
+  border-left:1px solid var(--color-divider);box-shadow:var(--shadow-lg);z-index:41;overflow-y:auto;padding:28px 30px 60px;display:none}
+.open .drawer-back,.open .drawer{display:block}
+.dfields{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
+.dfield .l{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--color-neutral-600)}
+.dfield .v{font-size:14px;border-bottom:1px solid var(--color-divider);padding:3px 0 5px;min-height:26px}
+.dfield input,.dfield select{width:100%;font:inherit;font-size:14px;background:transparent;border:0;
+  border-bottom:1px solid var(--color-divider);padding:3px 0 5px;color:var(--color-text);border-radius:0}
+.pre{white-space:pre-wrap;font-size:13px;color:var(--color-neutral-800);max-height:200px;overflow-y:auto;
+  border:1px solid var(--color-divider);padding:10px}
+@media (max-width:1100px){
+  .wrap{padding:24px 20px 0}
+  .hero-grid,.two{grid-template-columns:1fr !important}
+  .kpis{grid-template-columns:repeat(2,1fr) !important}
+  .gr{grid-template-columns:180px 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <span class="nav-brand">FREELANCE LEDGER<span style="color:var(--color-accent)"> / SAP</span></span>
+  <span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600)">Sheet 01 · Pipeline &amp; bench</span>
+  <span class="tag tag-outline" id="status-tag">loading…</span>
+  <button class="btn btn-primary blueprint" id="refresh-btn">Refresh<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i></button>
+</div>
+
+<div class="wrap">
+  <div id="notice-slot"></div>
+
+  <div class="hero-grid" style="display:grid;grid-template-columns:minmax(320px,.85fr) 1.15fr;gap:34px">
+    <div class="blueprint" id="hero" style="background:var(--color-accent-900);color:var(--color-bg);padding:26px 28px 22px;min-height:236px;display:flex;flex-direction:column;justify-content:space-between">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="kpis" id="kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px"></div>
+      <div class="blueprint" style="padding:16px 18px 14px;flex:1">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:10px">
+          <h6>Engagement history</h6>
+          <span class="muted">filled = billing · hatched = bench</span>
+        </div>
+        <div id="bench-strip"></div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="sechd">
+      <h4 style="margin:0">First contact → promised start</h4>
+      <span class="muted" style="margin-right:auto">✕ interview · ● agreement · ▸ promised start</span>
+      <div class="seg" id="pipe-filter"></div>
+    </div>
+    <div class="blueprint" id="gantt" style="padding:0">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    </div>
+  </div>
+
+  <div class="two" style="display:grid;grid-template-columns:1.05fr .95fr;gap:34px">
+    <div>
+      <div class="sechd">
+        <h4 style="margin:0">Budget against the market</h4>
+        <span class="muted" id="rate-legend"></span>
+      </div>
+      <div class="blueprint" style="padding:20px 22px 14px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div id="rate-chart"></div>
+      </div>
+    </div>
+    <div>
+      <div class="sechd">
+        <h4 style="margin:0">Promised vs actual duration</h4>
+        <span class="muted">realized projects, months</span>
+      </div>
+      <div class="blueprint" style="padding:20px 22px 16px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div id="dur-chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="sechd">
+      <h4 style="margin:0">Inquiry register</h4>
+      <span class="muted" id="table-count" style="margin-right:auto"></span>
+      <input class="input" id="table-search" placeholder="Search client, agency, contact…" style="width:260px;min-height:32px">
+    </div>
+    <div class="blueprint" style="padding:2px 16px 6px">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div id="register"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="sechd">
+      <h4 style="margin:0">Email intake (AI)</h4>
+      <span class="muted">the same job arrives as several emails — pick an existing inquiry and the AI enriches it instead of duplicating</span>
+    </div>
+    <div class="blueprint" style="padding:20px 22px;display:grid;grid-template-columns:1fr 1fr;gap:26px" id="intake">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div id="intake-left" style="display:flex;flex-direction:column;gap:12px">
+        <div class="field">
+          <label>This email belongs to</label>
+          <select class="input" id="ai-target-lead"><option value="">New inquiry</option></select>
+        </div>
+        <div class="field">
+          <label>Email text</label>
+          <textarea class="input" id="ai-email-text" style="min-height:168px;font-size:13px"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary blueprint" id="ai-save-btn">Save / enrich<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i></button>
+          <span class="status-msg" id="ai-status" style="margin-top:0"></span>
+        </div>
+      </div>
+      <div style="border-left:1px solid var(--color-divider);padding-left:26px">
+        <h6 style="margin-bottom:12px">Status</h6>
+        <div class="muted" style="margin-bottom:10px">Every change here writes straight to Notion. Inquiries with no activity for 15+ days are auto-flagged as fishing.</div>
+        <div id="sync-notice"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="drawer-root">
+  <div class="drawer-back" id="drawer-back"></div>
+  <div class="drawer" id="drawer"></div>
+</div>
+
+<script>
+const OPEN_STATUSES = ["Novo", "U razgovoru", "Pregovori budžeta", "Intervju", "Dogovoreno"];
+const STATUS_OPTIONS = ["Novo", "U razgovoru", "Pregovori budžeta", "Intervju", "Dogovoreno", "Realizovano", "Odbijeno", "Fishing/Sumnjivo"];
+const RADNI_MOD_OPTIONS = ["", "Remote", "On-site", "Hibrid"];
+const NACIN_DOLASKA_OPTIONS = ["", "Preko HH (posrednika)", "Direktno od klijenta"];
+const SAP_FOKUS_OPTIONS = ["", "Signavio", "SAP Solution Manager ChaRM", "SAP Solution Manager FB", "SAP CALM", "Ostalo"];
+const MY_DAY_RATE = 800, MARKET_MIN = 500, MARKET_MAX = 700;
+const INACTIVITY_THRESHOLD_DAYS = 15;
+const MJ = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAY = 86400000;
+const STATUS_LABEL = { "Novo":"New","U razgovoru":"In conversation","Pregovori budžeta":"Budget talks",
+  "Intervju":"Interview","Dogovoreno":"Agreed","Realizovano":"Realized","Odbijeno":"Rejected","Fishing/Sumnjivo":"Fishing" };
+const sl = s => STATUS_LABEL[s] || s || "—";
+const TAGS = { "Novo":"tag-neutral","U razgovoru":"tag-neutral","Pregovori budžeta":"tag-accent",
+  "Intervju":"tag-accent","Dogovoreno":"tag-outline","Realizovano":"tag-outline",
+  "Odbijeno":"tag-neutral","Fishing/Sumnjivo":"tag-neutral" };
+
+let currentRows = [];
+let pipeFilter = "open";
+let tableQuery = "";
+let aiEnabled = false;
+
+/* ── helpers ─────────────────────────────────────────────────────── */
+function esc(s){ if(s==null) return ""; return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fmtDate(s){ return s ? String(s).substring(0,10) : ""; }
+function fmtD(s){
+  if(!s) return "—";
+  const m = String(s).substring(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return String(s).substring(0,10);
+  return parseInt(m[3],10) + " " + MJ[parseInt(m[2],10)-1] + " " + m[1];
+}
+function daysBetween(a,b){ const d1=new Date(a),d2=new Date(b); if(isNaN(d1)||isNaN(d2)) return null; return Math.round((d2-d1)/DAY); }
+function addMonths(d,n){ const x=new Date(d); x.setUTCDate(x.getUTCDate()+Math.round(n*30.4)); return x; }
+function fitInfo(b){
+  if(b==null||b==="") return { label:"budget unknown", color:"var(--color-neutral-600)" };
+  if(b<MARKET_MIN) return { label:"below market", color:"var(--color-neutral-600)" };
+  if(b<=MARKET_MAX) return { label:"market band", color:"var(--color-accent-700)" };
+  if(b<MY_DAY_RATE) return { label:"above market", color:"var(--color-accent-700)" };
+  return { label:"meets my rate", color:"var(--color-accent-900)" };
+}
+function realizedSorted(rows){
+  return rows.filter(r=>r["Status"]==="Realizovano" && r["date:Datum realizacije:start"])
+    .map(r=>Object.assign({},r,{ startDate:new Date(r["date:Datum realizacije:start"]) }))
+    .filter(r=>!isNaN(r.startDate)).sort((a,b)=>a.startDate-b.startDate);
+}
+function projEnd(p){
+  const t = p["Stvarno trajanje (mjeseci)"] ?? p["Najavljeno trajanje (mjeseci)"];
+  return t==null ? null : addMonths(p.startDate, t);
+}
+async function api(path, options){
+  const res = await fetch("/api" + path, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options && options.headers) },
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || ("Request failed (" + res.status + ")"));
+  return data;
+}
+
+/* ── load / save (talks to our own /api routes, backed by the real Notion API) ── */
+async function loadConfig(){
+  let provider = null;
+  try{
+    const cfg = await api("/config");
+    aiEnabled = !!cfg.aiEnabled;
+    provider = cfg.aiProvider || null;
+  }catch(e){ aiEnabled = false; }
+  const left = document.getElementById("intake-left");
+  if(!aiEnabled){
+    left.innerHTML = '<div class="muted">AI email intake is off — set <code>DEEPSEEK_API_KEY</code> (recommended, cheaper) or <code>ANTHROPIC_API_KEY</code> as an environment variable on the server to enable it. You can still add/edit inquiries manually via the register table below.</div>';
+  } else {
+    const badge = document.createElement("div");
+    badge.className = "muted";
+    badge.style.marginTop = "-4px";
+    badge.textContent = "AI provider: " + provider;
+    left.insertBefore(badge, left.firstChild);
+  }
+}
+
+async function loadRows(isRefresh){
+  const tag = document.getElementById("status-tag");
+  const btn = document.getElementById("refresh-btn");
+  btn.disabled = true;
+  tag.textContent = isRefresh ? "refreshing…" : "loading…";
+  try{
+    const data = await api("/rows");
+    currentRows = data.rows || [];
+    await applyAutoFishingAndPush(currentRows);
+    renderAll();
+    tag.textContent = currentRows.length + " record" + (currentRows.length===1?"":"s") + " · live";
+    document.getElementById("notice-slot").innerHTML = "";
+  }catch(err){
+    tag.textContent = "error";
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="blueprint" style="padding:12px 16px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>'
+      + '<div class="status-msg error" style="margin:0">Could not load from Notion: ' + esc(err.message) + '. Check that NOTION_TOKEN and NOTION_DATABASE_ID are set correctly on the server.</div></div>';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+// Detects inquiries with no activity for 15+ days and pushes the fishing flag straight to Notion.
+async function applyAutoFishingAndPush(rows){
+  const today = new Date();
+  for(const r of rows){
+    if(!OPEN_STATUSES.includes(r["Status"])) continue;
+    const dates = [r["date:Datum prvog kontakta:start"], r["date:Datum dogovora:start"], r["date:Datum intervjua:start"]]
+      .filter(Boolean).map(d=>new Date(d)).filter(d=>!isNaN(d));
+    if(!dates.length) continue;
+    const last = dates.sort((a,b)=>b-a)[0];
+    if(Math.floor((today-last)/DAY) >= INACTIVITY_THRESHOLD_DAYS){
+      r["Status"] = "Fishing/Sumnjivo";
+      r["Fishing (samo sondiranje)"] = "__YES__";
+      try{
+        await api("/rows/" + encodeURIComponent(r.id), {
+          method: "PATCH",
+          body: JSON.stringify({ "Status": r["Status"], "Fishing (samo sondiranje)": r["Fishing (samo sondiranje)"] })
+        });
+      }catch(e){ /* keep the local flag even if the push fails; next load will retry */ }
+    }
+  }
+}
+
+async function createInquiry(props){
+  const data = await api("/rows", { method: "POST", body: JSON.stringify(props) });
+  currentRows.unshift(data.row);
+  renderAll();
+  return data.row;
+}
+
+async function patchRow(id, partial){
+  const data = await api("/rows/" + encodeURIComponent(id), { method: "PATCH", body: JSON.stringify(partial) });
+  const idx = currentRows.findIndex(r=>r.id===id);
+  if(idx !== -1) currentRows[idx] = Object.assign({}, currentRows[idx], data.row);
+  renderAll();
+  return data.row;
+}
+
+async function deleteRow(id){
+  const row = currentRows.find(r=>r.id===id);
+  if(!row) return;
+  const label = row["Klijent/Naziv"] || row["HH Firma"] || "this inquiry";
+  if(!window.confirm('Delete "'+label+'"? This archives the page in Notion.')) return;
+  const statusEl = document.getElementById("modal-status");
+  if(statusEl){ statusEl.textContent = "Deleting…"; statusEl.className = "status-msg"; }
+  try{
+    await api("/rows/" + encodeURIComponent(id), { method: "DELETE" });
+    currentRows = currentRows.filter(r=>r.id!==id);
+    renderAll();
+    closeDrawer();
+  }catch(err){
+    if(statusEl){ statusEl.textContent = "Error: " + err.message; statusEl.className = "status-msg error"; }
+  }
+}
+
+/* ── render (unchanged from the Cowork version — same shape of currentRows) ── */
+function renderAll(){
+  renderHero(); renderKpis(); renderBench(); renderFilter();
+  renderGantt(); renderRateChart(); renderDurChart(); renderRegister(); renderAiTargets();
+}
+
+function renderHero(){
+  const rows = currentRows, proj = realizedSorted(rows);
+  const gaps = [];
+  for(let i=1;i<proj.length;i++){
+    const end = projEnd(proj[i-1]);
+    if(end) gaps.push(Math.round((proj[i].startDate-end)/DAY));
+  }
+  const lastEnd = proj.length ? projEnd(proj[proj.length-1]) : null;
+  const benchDays = lastEnd ? Math.max(Math.round((new Date()-lastEnd)/DAY),0) : null;
+  const bench = benchDays!=null ? (benchDays/30.4).toFixed(1) : null;
+  const starts = rows.filter(r=>OPEN_STATUSES.includes(r["Status"]) && r["date:Najavljeni pocetak (po HH):start"])
+    .map(r=>r["date:Najavljeni pocetak (po HH):start"]).sort();
+  const avg = gaps.length ? (gaps.reduce((a,b)=>a+b,0)/gaps.length/30.4).toFixed(1)+" mo" : "—";
+  const worst = gaps.length ? (Math.max.apply(null,gaps)/30.4).toFixed(1)+" mo" : "—";
+  const nearest = starts.length ? fmtD(starts[0]).replace(/ \d{4}$/,"") : "—";
+  document.getElementById("hero").innerHTML =
+    '<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>'
+    + '<div style="font:600 11px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-300)">Months on bench — current</div>'
+    + '<div style="display:flex;align-items:flex-end;gap:14px;margin-top:10px">'
+    +   '<div style="font-family:var(--font-heading);font-weight:600;font-size:112px;line-height:.82;letter-spacing:-.03em">'+(bench!=null?bench:"—")+'</div>'
+    +   '<div style="font-size:13px;line-height:1.3;padding-bottom:10px;color:var(--color-accent-200)">months since<br>'+(lastEnd?fmtD(lastEnd.toISOString().slice(0,10)):"no data")+'</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:26px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.22)">'
+    +   heroCell(avg,"Avg gap (mo)") + heroCell(worst,"Longest gap (mo)") + heroCell(nearest,"Earliest start")
+    + '</div>';
+}
+function heroCell(v,l){
+  return '<div><div style="font-family:var(--font-heading);font-size:26px;line-height:1">'+esc(v)+'</div>'
+    + '<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-300)">'+l+'</div></div>';
+}
+
+function renderKpis(){
+  const rows = currentRows, total = rows.length;
+  const open = rows.filter(r=>OPEN_STATUSES.includes(r["Status"])).length;
+  const realized = rows.filter(r=>r["Status"]==="Realizovano").length;
+  const touch = rows.map(r=>r["Broj kontakata (pozivi/email)"]).filter(v=>v!=null);
+  const avgTouch = touch.length ? (touch.reduce((a,b)=>a+b,0)/touch.length).toFixed(1) : "—";
+  const fishing = rows.filter(r=>r["Fishing (samo sondiranje)"]==="__YES__").length;
+  const kpis = [
+    { v:open, l:"Open inquiries", n:total+" records total" },
+    { v:realized+" / "+total, l:"Inquiry → contract", n:total?Math.round(realized/total*100)+"% conversion":"no data" },
+    { v:avgTouch, l:"Avg touches", n:"3+ signals a real brief" },
+    { v:(total?Math.round(fishing/total*100):0)+"%", l:"Fishing rate", n:fishing+" flagged" }
+  ];
+  document.getElementById("kpis").innerHTML = kpis.map(k=>
+    '<div class="blueprint kpi"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>'
+    + '<div class="v">'+esc(k.v)+'</div><div class="l">'+esc(k.l)+'</div><div class="n">'+esc(k.n)+'</div></div>').join("");
+}
+
+function renderBench(){
+  const proj = realizedSorted(currentRows).filter(p=>projEnd(p));
+  const el = document.getElementById("bench-strip");
+  if(!proj.length){ el.innerHTML = '<div class="empty">No realized projects with a date and duration yet.</div>'; return; }
+  const H0 = new Date(proj[0].startDate.getTime() - 90*DAY), H1 = new Date();
+  const hp = d => ((new Date(d)-H0)/(H1-H0))*100;
+  const bench = "repeating-linear-gradient(45deg,transparent,transparent 4px,var(--color-neutral-300) 4px,var(--color-neutral-300) 5px)";
+  const benchNow = "repeating-linear-gradient(45deg,transparent,transparent 4px,var(--color-accent-300) 4px,var(--color-accent-300) 5px)";
+  let cursor = H0, html = "";
+  proj.forEach(p=>{
+    const end = projEnd(p);
+    html += block(hp(cursor), hp(p.startDate)-hp(cursor), bench, "", "");
+    html += block(hp(p.startDate), hp(end)-hp(p.startDate), "var(--color-accent)", esc(p["Klijent/Naziv"]||""), esc(p["Klijent/Naziv"]||""));
+    cursor = end;
+  });
+  html += block(hp(cursor), 100-hp(cursor), benchNow, "", "");
+
+  const ticks = [];
+  const m = new Date(Date.UTC(H0.getUTCFullYear(), H0.getUTCMonth(), 1));
+  while(m < H1){
+    ticks.push('<div style="position:absolute;top:0;left:'+hp(m)+'%;font-size:10.5px;color:var(--color-neutral-600);border-left:1px solid var(--color-divider);padding-left:4px;white-space:nowrap">'
+      + MJ[m.getUTCMonth()] + (m.getUTCMonth()===0 ? " "+m.getUTCFullYear() : "") + '</div>');
+    m.setUTCMonth(m.getUTCMonth()+1);
+  }
+  el.innerHTML = '<div style="position:relative;height:36px;border:1px solid var(--color-divider)">'+html+'</div>'
+    + '<div style="position:relative;height:16px;margin-top:2px">'+ticks.join("")+'</div>';
+}
+function block(left,width,fill,title,label){
+  if(width<=0) return "";
+  const labelHtml = label
+    ? '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;pointer-events:none">'+label+'</span>'
+    : '';
+  return '<div title="'+title+'" style="position:absolute;top:0;bottom:0;left:'+left+'%;width:'+width+'%;background:'+fill+';border-right:1px solid var(--color-divider)">'+labelHtml+'</div>';
+}
+
+function renderFilter(){
+  const defs = [["open","Open"],["hot","Engaged"],["dead","Closed"],["all","All"]];
+  document.getElementById("pipe-filter").innerHTML = defs.map(([k,l])=>
+    '<span class="seg-opt'+(pipeFilter===k?" on":"")+'" data-f="'+k+'">'+l+'</span>').join("");
+}
+
+function visibleLeads(){
+  return currentRows.filter(r=>{
+    const open = OPEN_STATUSES.includes(r["Status"]);
+    if(pipeFilter==="all") return true;
+    if(pipeFilter==="open") return open;
+    if(pipeFilter==="hot") return open && (r["Broj kontakata (pozivi/email)"]||0) >= 3;
+    return !open;
+  });
+}
+
+function ganttRange(rows){
+  const dates = [];
+  rows.forEach(r=>{
+    ["date:Datum prvog kontakta:start","date:Datum intervjua:start","date:Datum dogovora:start",
+     "date:Najavljeni pocetak (po HH):start","date:Datum realizacije:start"].forEach(k=>{
+      if(r[k]) dates.push(new Date(r[k]));
+    });
+  });
+  dates.push(new Date());
+  const valid = dates.filter(d=>!isNaN(d));
+  let min = new Date(Math.min.apply(null, valid)), max = new Date(Math.max.apply(null, valid));
+  min = new Date(Date.UTC(min.getUTCFullYear(), min.getUTCMonth(), 1));
+  max = new Date(Date.UTC(max.getUTCFullYear(), max.getUTCMonth()+2, 1));
+  return [min, max];
+}
+
+function renderGantt(){
+  const rows = visibleLeads(), el = document.getElementById("gantt");
+  const corners = '<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>';
+  if(!rows.length){ el.innerHTML = corners + '<div class="empty">No inquiries for this filter.</div>'; return; }
+  const [T0,T1] = ganttRange(rows);
+  const pct = d => ((new Date(d)-T0)/(T1-T0))*100;
+
+  const months = [];
+  for(let m=new Date(T0); m<T1; m.setUTCMonth(m.getUTCMonth()+1)){
+    const nx = new Date(m); nx.setUTCMonth(nx.getUTCMonth()+1);
+    months.push({ left: pct(m), width: pct(nx)-pct(m),
+      label: MJ[m.getUTCMonth()] + (m.getUTCMonth()===0 ? " "+String(m.getUTCFullYear()).slice(2) : "") });
+  }
+  const head = months.map(m=>'<div style="position:absolute;top:0;bottom:0;left:'+m.left+'%;width:'+m.width
+    +'%;border-left:1px solid var(--color-divider);padding:9px 0 0 7px;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--color-neutral-600)">'+m.label+'</div>').join("");
+  const grid = months.map(m=>'<div style="position:absolute;top:0;bottom:0;left:'+m.left+'%;border-left:1px solid color-mix(in srgb,var(--color-text) 7%,transparent)"></div>').join("");
+  const todayLeft = pct(new Date());
+
+  const body = rows.map(r=>{
+    const first = r["date:Datum prvog kontakta:start"];
+    const start = r["date:Najavljeni pocetak (po HH):start"] || r["date:Datum realizacije:start"];
+    const openLead = OPEN_STATUSES.includes(r["Status"]);
+    const left = first ? pct(first) : 0;
+    const end = start ? pct(start) : (openLead ? todayLeft : left+1.2);
+    const budget = r["Budžet klijenta (EUR)"];
+    const fill = !openLead ? "var(--color-neutral-300)" : (budget!=null && budget>=MY_DAY_RATE ? "var(--color-accent-800)" : "var(--color-accent-400)");
+    let marks = "";
+    [[r["date:Datum intervjua:start"],"✕"],[r["date:Datum dogovora:start"],"●"],[start,"▸"]].forEach(([d,g])=>{
+      if(d) marks += '<div style="position:absolute;top:9px;left:'+pct(d)+'%;transform:translateX(-50%);font-size:12px;line-height:1;color:var(--color-accent-800)">'+g+'</div>';
+    });
+    return '<div class="gr grow" data-id="'+esc(r.id)+'">'
+      + '<div style="padding:10px 14px;border-right:1px solid var(--color-divider)">'
+      +   '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'
+      +     '<span style="font-family:var(--font-heading);font-weight:600;font-size:16px;line-height:1.1">'+esc(r["Klijent/Naziv"]||"Untitled")+'</span>'
+      +     '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span>'
+      +   '</div>'
+      +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc([r["HH Firma"],r["Kontakt osoba (HH)"]].filter(Boolean).join(" · ")||"direct")+'</div>'
+      + '</div>'
+      + '<div style="position:relative;height:52px">' + grid
+      +   '<div style="position:absolute;top:0;bottom:0;left:'+todayLeft+'%;border-left:1px dashed var(--color-accent)"></div>'
+      +   '<div style="position:absolute;top:15px;height:13px;left:'+left+'%;width:'+Math.max(end-left,0.6)+'%;background:'+fill+';border:1px solid var(--color-accent-700)"></div>'
+      +   '<div style="position:absolute;top:34px;left:'+left+'%;font-size:10.5px;color:var(--color-neutral-700);white-space:nowrap">'
+      +     fmtD(first)+(start?" → "+fmtD(start):" · no promised start")+'</div>'
+      +   marks
+      + '</div></div>';
+  }).join("");
+
+  el.innerHTML = corners
+    + '<div class="gr" style="border-bottom:1px solid var(--color-divider)">'
+    +   '<div style="padding:9px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-600);border-right:1px solid var(--color-divider)">Inquiry</div>'
+    +   '<div style="position:relative;height:32px">'+head+'</div>'
+    + '</div>' + body
+    + '<div class="gr"><div style="padding:9px 14px;font-size:11.5px;color:var(--color-neutral-600);border-right:1px solid var(--color-divider)">Dashed line = today, '+fmtD(new Date().toISOString().slice(0,10))+'</div><div></div></div>';
+
+  el.querySelectorAll(".grow").forEach(n=>n.addEventListener("click",()=>openDetail(n.dataset.id)));
+}
+
+function renderRateChart(){
+  document.getElementById("rate-legend").textContent = "band = "+MARKET_MIN+"–"+MARKET_MAX+" € · line = my rate "+MY_DAY_RATE+" €";
+  const withB = currentRows.filter(r=>r["Budžet klijenta (EUR)"]!=null && r["Budžet klijenta (EUR)"]!=="")
+    .sort((a,b)=>b["Budžet klijenta (EUR)"]-a["Budžet klijenta (EUR)"]);
+  const el = document.getElementById("rate-chart");
+  if(!withB.length){ el.innerHTML = '<div class="empty">No inquiry has a client budget recorded yet.</div>'; return; }
+  const R0 = 400, R1 = Math.max(900, MY_DAY_RATE+100, Math.max.apply(null,withB.map(r=>r["Budžet klijenta (EUR)"]))+50);
+  const rp = v => ((v-R0)/(R1-R0))*100;
+  const bars = withB.map(r=>{
+    const b = r["Budžet klijenta (EUR)"];
+    const fill = b>=MY_DAY_RATE ? "var(--color-accent-800)" : (b>=MARKET_MIN ? "var(--color-accent-400)" : "var(--color-neutral-300)");
+    return '<div style="position:relative;height:22px">'
+      + '<div style="position:absolute;top:4px;left:0;width:'+Math.max(rp(b),0)+'%;height:14px;background:'+fill+';border:1px solid var(--color-accent-700)"></div>'
+      + '<div style="position:absolute;top:4px;left:'+Math.max(rp(b),0)+'%;font-size:11.5px;line-height:14px;padding-left:8px;white-space:nowrap;color:var(--color-neutral-800)">'
+      +   esc(r["Klijent/Naziv"]||r["HH Firma"]||"inquiry")+' · '+b+' €</div></div>';
+  }).join("");
+  const ticks = [];
+  for(let v=R0; v<=R1; v+=100) ticks.push('<div style="position:absolute;top:5px;left:'+rp(v)+'%;transform:translateX(-50%);font-size:10.5px;color:var(--color-neutral-600)">'+v+'€</div>');
+  el.innerHTML = '<div style="position:relative;padding-bottom:22px">'
+    + '<div style="position:absolute;top:0;bottom:22px;left:'+rp(MARKET_MIN)+'%;width:'+(rp(MARKET_MAX)-rp(MARKET_MIN))+'%;background:var(--color-accent-100);border-left:1px solid var(--color-accent-300);border-right:1px solid var(--color-accent-300)"></div>'
+    + '<div style="position:absolute;top:0;bottom:22px;left:'+rp(MY_DAY_RATE)+'%;border-left:2px solid var(--color-accent-800)"></div>'
+    + '<div style="position:relative;display:flex;flex-direction:column;gap:9px">'+bars+'</div>'
+    + '<div style="position:relative;height:22px;margin-top:6px;border-top:1px solid var(--color-divider)">'+ticks.join("")+'</div></div>';
+}
+
+function renderDurChart(){
+  const pairs = currentRows.filter(r=>r["Najavljeno trajanje (mjeseci)"]!=null && r["Stvarno trajanje (mjeseci)"]!=null);
+  const el = document.getElementById("dur-chart");
+  if(!pairs.length){ el.innerHTML = '<div class="empty">Both promised and actual duration are needed to compare.</div>'; return; }
+  const maxP = Math.max.apply(null, pairs.map(r=>Math.max(r["Najavljeno trajanje (mjeseci)"], r["Stvarno trajanje (mjeseci)"])));
+  const rowsHtml = pairs.slice().reverse().map(r=>{
+    const p = r["Najavljeno trajanje (mjeseci)"], a = r["Stvarno trajanje (mjeseci)"];
+    const d = (p-a).toFixed(1).replace(/\.0$/,"");
+    return '<div style="display:grid;grid-template-columns:150px 1fr 74px;gap:12px;align-items:center">'
+      + '<div style="font-size:13px;line-height:1.2">'+esc(r["Klijent/Naziv"]||"—")+'</div>'
+      + '<div style="position:relative;height:22px">'
+      +   '<div style="position:absolute;top:0;left:0;height:9px;width:'+(p/maxP*100)+'%;border:1px dashed var(--color-accent-600)"></div>'
+      +   '<div style="position:absolute;top:12px;left:0;height:10px;width:'+(a/maxP*100)+'%;background:var(--color-accent)"></div>'
+      + '</div>'
+      + '<div style="font-family:var(--font-heading);font-size:15px;text-align:right;color:var(--color-accent-800)">'+(p-a>=0?"−":"+")+Math.abs(d)+' mo</div></div>';
+  }).join("");
+  const avg = (pairs.reduce((s,r)=>s+(r["Najavljeno trajanje (mjeseci)"]-r["Stvarno trajanje (mjeseci)"]),0)/pairs.length).toFixed(1);
+  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px">'+rowsHtml+'</div>'
+    + '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--color-divider);font-size:12px;color:var(--color-neutral-700)">'
+    + 'Promised duration overstates the real engagement by '+avg+' months on average — start hunting the next lead that much earlier.</div>';
+}
+
+function renderRegister(){
+  const q = tableQuery.toLowerCase();
+  const rows = visibleLeads().filter(r=>{
+    if(!q) return true;
+    return [r["Klijent/Naziv"],r["HH Firma"],r["Kontakt osoba (HH)"],r["SAP Fokus"],r["Status"]]
+      .filter(Boolean).join(" ").toLowerCase().includes(q);
+  });
+  document.getElementById("table-count").textContent = rows.length+" of "+currentRows.length+" records · click a row for detail";
+  const el = document.getElementById("register");
+  if(!rows.length){ el.innerHTML = '<div class="empty">No records for this filter.</div>'; return; }
+  const body = rows.map(r=>{
+    const fit = fitInfo(r["Budžet klijenta (EUR)"]);
+    const next = r["date:Najavljeni pocetak (po HH):start"] ? ["Promised start", r["date:Najavljeni pocetak (po HH):start"]]
+      : (r["date:Datum intervjua:start"] ? ["Interview", r["date:Datum intervjua:start"]]
+      : ["First contact", r["date:Datum prvog kontakta:start"]]);
+    return '<tr data-id="'+esc(r.id)+'" style="cursor:pointer">'
+      + '<td><div style="display:flex;align-items:center;gap:6px"><span style="font-family:var(--font-heading);font-weight:600;font-size:16px">'
+      +   esc(r["Klijent/Naziv"]||"Untitled")+'</span></div>'
+      +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["Radni mod"]||"—")+'</div></td>'
+      + '<td style="font-size:13px">'+esc(r["HH Firma"]||"direktno")+'<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["Kontakt osoba (HH)"]||"—")+'</div></td>'
+      + '<td style="font-size:13px">'+esc(r["SAP Fokus"]||"—")+'</td>'
+      + '<td><span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span></td>'
+      + '<td style="font-size:13px;text-align:right">'+(r["Broj kontakata (pozivi/email)"] ?? "—")+'</td>'
+      + '<td><div style="font-size:13px">'+(r["Budžet klijenta (EUR)"]!=null?r["Budžet klijenta (EUR)"]+" €/d":"—")+'</div>'
+      +   '<div style="font-size:11px;color:'+fit.color+'">'+fit.label+'</div></td>'
+      + '<td style="font-size:13px">'+fmtD(next[1])+'<div style="font-size:11.5px;color:var(--color-neutral-600)">'+next[0]+'</div></td></tr>';
+  }).join("");
+  el.innerHTML = '<table class="table"><thead><tr>'
+    + '<th style="width:23%">Client</th><th style="width:21%">Via</th><th style="width:15%">Focus</th>'
+    + '<th style="width:13%">Status</th><th style="width:7%;text-align:right">Touch</th>'
+    + '<th style="width:11%">Budget</th><th style="width:12%">Next date</th>'
+    + '</tr></thead><tbody>'+body+'</tbody></table>';
+  el.querySelectorAll("tr[data-id]").forEach(n=>n.addEventListener("click",()=>openDetail(n.dataset.id)));
+}
+
+function renderAiTargets(){
+  const sel = document.getElementById("ai-target-lead");
+  if(!sel) return;
+  const prev = sel.value;
+  const open = currentRows.filter(r=>OPEN_STATUSES.includes(r["Status"]));
+  sel.innerHTML = '<option value="">New inquiry</option>' + open.map(r=>{
+    const label = [r["HH Firma"],r["Klijent/Naziv"]].filter(Boolean).join(" → ") || "Untitled";
+    return '<option value="'+esc(r.id)+'">'+esc(label)+' ('+esc(sl(r["Status"]))+')</option>';
+  }).join("");
+  if(open.some(r=>r.id===prev)) sel.value = prev;
+}
+
+/* ── detail drawer ───────────────────────────────────────────────── */
+function opts(list, selected){
+  return list.map(o=>'<option value="'+esc(o)+'"'+(o===(selected||"")?" selected":"")+'>'+esc(o===""?"—":(STATUS_LABEL[o]||o))+'</option>').join("");
+}
+function dfield(label, inner){ return '<div class="dfield"><div class="l">'+label+'</div>'+inner+'</div>'; }
+
+function openDetail(id){
+  const row = currentRows.find(r=>r.id===id);
+  if(!row) return;
+  const fit = fitInfo(row["Budžet klijenta (EUR)"]);
+  document.getElementById("drawer").innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:12px">'
+    + '<div style="flex:1"><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent)">Notion record</div>'
+    +   '<h3 style="margin:4px 0 6px">'+esc(row["Klijent/Naziv"]||"Bez naziva")+'</h3></div>'
+    + '<button class="btn btn-secondary btn-icon" id="drawer-close">✕</button></div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">'
+    +   '<span class="tag '+(TAGS[row["Status"]]||"tag-neutral")+'">'+esc(sl(row["Status"]))+'</span>'
+    +   '<span class="tag tag-neutral">'+esc(row["Radni mod"]||"work mode ?")+'</span>'
+    +   '<span class="tag tag-neutral">'+esc(row["Način dolaska"]||"route ?")+'</span>'
+    +   '<span class="tag tag-neutral">'+esc(fit.label)+'</span></div>'
+    + '<div class="dfields" style="margin-bottom:20px">'
+    +   dfield("Agency", '<input id="m-hh-firma" value="'+esc(row["HH Firma"]||"")+'">')
+    +   dfield("Contact person", '<input id="m-kontakt-osoba" value="'+esc(row["Kontakt osoba (HH)"]||"")+'">')
+    +   dfield("End client", '<input id="m-klijent" value="'+esc(row["Klijent/Naziv"]||"")+'">')
+    +   dfield("Status", '<select id="m-status">'+opts(STATUS_OPTIONS,row["Status"])+'</select>')
+    +   dfield("Work mode", '<select id="m-radni-mod">'+opts(RADNI_MOD_OPTIONS,row["Radni mod"])+'</select>')
+    +   dfield("Route", '<select id="m-nacin-dolaska">'+opts(NACIN_DOLASKA_OPTIONS,row["Način dolaska"])+'</select>')
+    +   dfield("SAP focus", '<select id="m-sap-fokus">'+opts(SAP_FOKUS_OPTIONS,row["SAP Fokus"])+'</select>')
+    +   dfield("Touches", '<input type="number" min="0" step="1" id="m-broj-kontakata" value="'+(row["Broj kontakata (pozivi/email)"] ?? "")+'">')
+    +   dfield("Client budget (EUR)", '<input type="number" min="0" step="1" id="m-budzet" value="'+(row["Budžet klijenta (EUR)"] ?? "")+'">')
+    +   dfield("Agreed rate (EUR)", '<input type="number" min="0" step="1" id="m-dogovoreni-rate" value="'+(row["Dogovoreni rate (EUR)"] ?? "")+'">')
+    +   dfield("Promised duration (mo)", '<input type="number" min="0" step="0.5" id="m-najavljeno" value="'+(row["Najavljeno trajanje (mjeseci)"] ?? "")+'">')
+    +   dfield("Actual duration (mo)", '<input type="number" min="0" step="0.5" id="m-stvarno" value="'+(row["Stvarno trajanje (mjeseci)"] ?? "")+'">')
+    +   dfield("First contact", '<input type="date" id="m-datum-prvi-kontakt" value="'+fmtDate(row["date:Datum prvog kontakta:start"])+'">')
+    +   dfield("Interview date", '<input type="date" id="m-datum-intervju" value="'+fmtDate(row["date:Datum intervjua:start"])+'">')
+    +   dfield("Agreement date", '<input type="date" id="m-datum-dogovor" value="'+fmtDate(row["date:Datum dogovora:start"])+'">')
+    +   dfield("Start / realized date", '<input type="date" id="m-datum-realizacija" value="'+fmtDate(row["date:Datum realizacije:start"])+'">')
+    +   dfield("Promised start (agency)", '<input type="date" id="m-najavljeni-pocetak" value="'+fmtDate(row["date:Najavljeni pocetak (po HH):start"])+'">')
+    +   dfield("Fishing", '<div class="v"><label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="checkbox" id="m-fishing" '
+    +     (row["Fishing (samo sondiranje)"]==="__YES__"?"checked":"")+' style="width:auto"> probing only</label></div>')
+    + '</div>'
+    + '<h6 style="margin-bottom:8px">Scope</h6><div class="pre" style="margin-bottom:16px">'+esc(row["Opis posla"]||"—")+'</div>'
+    + '<h6 style="margin-bottom:8px">Notes</h6><div class="pre" style="margin-bottom:22px">'+esc(row["Napomene"]||"—")+'</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +   '<button class="btn btn-primary blueprint" id="m-save">Save<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i></button>'
+    +   '<button class="btn btn-secondary" id="m-delete">Delete inquiry</button></div>'
+    + '<div class="status-msg" id="modal-status"></div>';
+  document.getElementById("drawer-close").addEventListener("click", closeDrawer);
+  document.getElementById("m-save").addEventListener("click", ()=>saveDetail(id));
+  document.getElementById("m-delete").addEventListener("click", ()=>deleteRow(id));
+  document.getElementById("drawer-root").classList.add("open");
+}
+function closeDrawer(){ document.getElementById("drawer-root").classList.remove("open"); }
+
+async function saveDetail(id){
+  const statusEl = document.getElementById("modal-status");
+  const row = currentRows.find(r=>r.id===id);
+  if(!row){ statusEl.textContent = "Error: record not found."; statusEl.className="status-msg error"; return; }
+  const val = i => document.getElementById(i).value;
+  const partial = {
+    "HH Firma": val("m-hh-firma") || null,
+    "Kontakt osoba (HH)": val("m-kontakt-osoba") || null,
+    "Klijent/Naziv": val("m-klijent") || "Unknown client",
+    "Status": val("m-status"),
+    "Radni mod": val("m-radni-mod") || null,
+    "Način dolaska": val("m-nacin-dolaska") || null,
+    "SAP Fokus": val("m-sap-fokus") || null,
+    "Fishing (samo sondiranje)": document.getElementById("m-fishing").checked ? "__YES__" : "__NO__",
+  };
+  [["m-broj-kontakata","Broj kontakata (pozivi/email)"],["m-budzet","Budžet klijenta (EUR)"],
+   ["m-dogovoreni-rate","Dogovoreni rate (EUR)"],["m-najavljeno","Najavljeno trajanje (mjeseci)"],
+   ["m-stvarno","Stvarno trajanje (mjeseci)"]].forEach(([i,p])=>{
+    const v = val(i); partial[p] = v==="" ? null : Number(v);
+  });
+  [["m-datum-prvi-kontakt","Datum prvog kontakta"],["m-datum-intervju","Datum intervjua"],["m-datum-dogovor","Datum dogovora"],
+   ["m-datum-realizacija","Datum realizacije"],["m-najavljeni-pocetak","Najavljeni pocetak (po HH)"]].forEach(([i,p])=>{
+    partial["date:"+p+":start"] = val(i) || null;
+  });
+  statusEl.textContent = "Saving…"; statusEl.className = "status-msg";
+  try{
+    await patchRow(id, partial);
+    statusEl.textContent = "Saved."; statusEl.className = "status-msg ok";
+    setTimeout(closeDrawer, 500);
+  }catch(err){
+    statusEl.textContent = "Error: " + err.message; statusEl.className = "status-msg error";
+  }
+}
+
+/* ── AI intake ───────────────────────────────────────────────────── */
+function mergeExtractedIntoRow(row, parsed, rawText){
+  if(parsed.hh_firma) row["HH Firma"] = parsed.hh_firma;
+  if(parsed.kontakt_osoba) row["Kontakt osoba (HH)"] = parsed.kontakt_osoba;
+  if(parsed.klijent) row["Klijent/Naziv"] = parsed.klijent;
+  if(!row["Način dolaska"] && parsed.hh_firma) row["Način dolaska"] = "Preko HH (posrednika)";
+  else if(!row["Način dolaska"] && parsed.klijent && !parsed.hh_firma) row["Način dolaska"] = "Direktno od klijenta";
+  if(["Remote","On-site","Hibrid"].includes(parsed.radni_mod)) row["Radni mod"] = parsed.radni_mod;
+  if(SAP_FOKUS_OPTIONS.includes(parsed.sap_fokus) && parsed.sap_fokus!=="") row["SAP Fokus"] = parsed.sap_fokus;
+  if(parsed.budzet!=null && parsed.budzet!=="") row["Budžet klijenta (EUR)"] = Number(parsed.budzet);
+  if(parsed.trajanje_mjeseci!=null && parsed.trajanje_mjeseci!=="") row["Najavljeno trajanje (mjeseci)"] = Number(parsed.trajanje_mjeseci);
+  if(parsed.najavljeni_pocetak && /^\d{4}-\d{2}-\d{2}$/.test(parsed.najavljeni_pocetak)) row["date:Najavljeni pocetak (po HH):start"] = parsed.najavljeni_pocetak;
+  if(parsed.opis) row["Opis posla"] = row["Opis posla"] ? row["Opis posla"]+"\n\n---\n"+parsed.opis : parsed.opis;
+  const dodatak = parsed.napomene || rawText;
+  if(dodatak){
+    const stamp = "["+new Date().toISOString().substring(0,10)+"] "+dodatak;
+    row["Napomene"] = row["Napomene"] ? row["Napomene"]+"\n\n"+stamp : stamp;
+  }
+  row["Broj kontakata (pozivi/email)"] = (row["Broj kontakata (pozivi/email)"]||0)+1;
+  return row;
+}
+
+async function handleAiSave(){
+  if(!aiEnabled) return;
+  const textEl = document.getElementById("ai-email-text");
+  const text = textEl.value.trim();
+  const statusEl = document.getElementById("ai-status");
+  if(!text){ statusEl.textContent = "Paste the email text first."; statusEl.className = "status-msg error"; return; }
+  const btn = document.getElementById("ai-save-btn");
+  btn.disabled = true; statusEl.textContent = "AI is reading the email…"; statusEl.className = "status-msg";
+  const targetId = document.getElementById("ai-target-lead").value;
+  try{
+    const { parsed } = await api("/ai-extract", { method: "POST", body: JSON.stringify({ text }) });
+
+    if(targetId){
+      const row = currentRows.find(r=>r.id===targetId);
+      if(!row) throw new Error("The selected inquiry no longer exists — refresh the page.");
+      const merged = mergeExtractedIntoRow(Object.assign({}, row), parsed, text);
+      await patchRow(targetId, merged);
+      statusEl.textContent = "Enriched — "+(row["Klijent/Naziv"]||row["HH Firma"]||"inquiry")+".";
+      statusEl.className = "status-msg ok";
+      textEl.value = ""; document.getElementById("ai-target-lead").value = "";
+      return;
+    }
+
+    const props = {
+      "Klijent/Naziv": parsed.klijent || parsed.hh_firma || "Unknown client",
+      "HH Firma": parsed.hh_firma || null,
+      "Kontakt osoba (HH)": parsed.kontakt_osoba || null,
+      "Izvor": "Email", "Status": "Novo",
+      "Opis posla": parsed.opis || text,
+      "Napomene": parsed.napomene || null,
+      "Fishing (samo sondiranje)": "__NO__",
+      "Broj kontakata (pozivi/email)": 1,
+      "date:Datum prvog kontakta:start": new Date().toISOString().substring(0,10),
+      "Način dolaska": parsed.hh_firma ? "Preko HH (posrednika)" : "Direktno od klijenta"
+    };
+    if(["Remote","On-site","Hibrid"].includes(parsed.radni_mod)) props["Radni mod"] = parsed.radni_mod;
+    if(SAP_FOKUS_OPTIONS.includes(parsed.sap_fokus) && parsed.sap_fokus!=="") props["SAP Fokus"] = parsed.sap_fokus;
+    if(parsed.budzet!=null && parsed.budzet!=="") props["Budžet klijenta (EUR)"] = Number(parsed.budzet);
+    if(parsed.trajanje_mjeseci!=null && parsed.trajanje_mjeseci!=="") props["Najavljeno trajanje (mjeseci)"] = Number(parsed.trajanje_mjeseci);
+    if(parsed.najavljeni_pocetak && /^\d{4}-\d{2}-\d{2}$/.test(parsed.najavljeni_pocetak)) props["date:Najavljeni pocetak (po HH):start"] = parsed.najavljeni_pocetak;
+
+    const created = await createInquiry(props);
+    statusEl.textContent = "Saved — "+(created["Klijent/Naziv"]||"new inquiry")+".";
+    statusEl.className = "status-msg ok";
+    textEl.value = "";
+  }catch(err){
+    statusEl.textContent = "Error: "+err.message; statusEl.className = "status-msg error";
+  }finally{ btn.disabled = false; }
+}
+
+document.getElementById("ai-save-btn").addEventListener("click", handleAiSave);
+document.getElementById("refresh-btn").addEventListener("click", ()=>loadRows(true));
+document.getElementById("drawer-back").addEventListener("click", closeDrawer);
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDrawer(); });
+document.getElementById("pipe-filter").addEventListener("click", e=>{
+  const f = e.target.dataset.f; if(!f) return;
+  pipeFilter = f; renderFilter(); renderGantt(); renderRegister();
+});
+document.getElementById("table-search").addEventListener("input", e=>{ tableQuery = e.target.value; renderRegister(); });
+
+loadConfig();
+loadRows(false);
+</script>
+</body>
+</html>
