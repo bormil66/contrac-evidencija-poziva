@@ -699,8 +699,10 @@ function openDetail(id){
     +   dfield("Fishing", '<div class="v"><label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="checkbox" id="m-fishing" '
     +     (row["Fishing (samo sondiranje)"]==="__YES__"?"checked":"")+' style="width:auto"> probing only</label></div>')
     + '</div>'
-    + '<h6 style="margin-bottom:8px">Scope</h6><div class="pre" style="margin-bottom:16px">'+esc(row["Opis posla"]||"—")+'</div>'
-    + '<h6 style="margin-bottom:8px">Notes</h6><div class="pre" style="margin-bottom:22px">'+esc(row["Napomene"]||"—")+'</div>'
+    + '<h6 style="margin-bottom:8px">Scope</h6>'
+    + '<textarea id="m-scope" rows="5" style="width:100%;margin-bottom:16px;padding:10px;border:1px solid var(--color-divider);border-radius:8px;background:var(--color-bg);color:var(--color-text);font:inherit;resize:vertical">'+esc(row["Opis posla"]||"")+'</textarea>'
+    + '<h6 style="margin-bottom:8px">Notes</h6>'
+    + '<textarea id="m-notes" rows="5" style="width:100%;margin-bottom:22px;padding:10px;border:1px solid var(--color-divider);border-radius:8px;background:var(--color-bg);color:var(--color-text);font:inherit;resize:vertical">'+esc(row["Napomene"]||"")+'</textarea>'
     + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
     +   '<button class="btn btn-primary blueprint" id="m-save">Save<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i></button>'
     +   '<button class="btn btn-secondary" id="m-delete">Delete inquiry</button></div>'
@@ -725,6 +727,8 @@ async function saveDetail(id){
     "Radni mod": val("m-radni-mod") || null,
     "Način dolaska": val("m-nacin-dolaska") || null,
     "SAP Fokus": val("m-sap-fokus") || null,
+    "Opis posla": val("m-scope") || null,
+    "Napomene": val("m-notes") || null,
     "Fishing (samo sondiranje)": document.getElementById("m-fishing").checked ? "__YES__" : "__NO__",
   };
   [["m-broj-kontakata","Broj kontakata (pozivi/email)"],["m-budzet","Budžet klijenta (EUR)"],
