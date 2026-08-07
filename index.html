@@ -81,7 +81,7 @@ textarea.input{min-height:90px;resize:vertical}
 .status-msg{font-size:12px;margin-top:8px;color:var(--color-neutral-700)}
 .status-msg.error{color:#8c2f2f} .status-msg.ok{color:var(--color-accent-800)} .status-msg.warn{color:var(--color-accent-700)}
 .record-name{font-family:var(--font-heading);font-weight:600;font-size:16px;line-height:1.1}
-.record-fishing{color:#c0392b;font-style:italic}
+.record-fishing{color:#c0392b;font-style:italic;font-weight:700}
 .record-realized{color:#2e7d32;font-weight:700}
 .empty{color:var(--color-neutral-600);font-size:13px;padding:18px 0;text-align:center}
 .drawer-back{position:fixed;inset:0;background:color-mix(in srgb,var(--color-neutral-900) 46%,transparent);z-index:40;display:none}
@@ -252,6 +252,11 @@ function fitInfo(b){
   if(b<=MARKET_MAX) return { label:"market band", color:"var(--color-accent-700)" };
   if(b<MY_DAY_RATE) return { label:"above market", color:"var(--color-accent-700)" };
   return { label:"meets my rate", color:"var(--color-accent-900)" };
+}
+function isFishingRow(r){
+  const status = String(r["Status"] ?? "").trim();
+  const fishingFlag = String(r["Fishing (samo sondiranje)"] ?? "").trim();
+  return fishingFlag === "__YES__" || /fishing/i.test(status);
 }
 function realizedSorted(rows){
   return rows.filter(r=>r["Status"]==="Realizovano" && r["date:Datum realizacije:start"])
@@ -512,7 +517,7 @@ function renderGantt(){
     const first = r["date:Datum prvog kontakta:start"];
     const start = r["date:Najavljeni pocetak (po HH):start"] || r["date:Datum realizacije:start"];
     const openLead = OPEN_STATUSES.includes(r["Status"]);
-    const isFishing = r["Fishing (samo sondiranje)"]==="__YES__" || r["Status"]==="Fishing/Sumnjivo";
+    const isFishing = isFishingRow(r);
     const isRealized = r["Status"]==="Realizovano";
     const left = first ? pct(first) : 0;
     const end = start ? pct(start) : (openLead ? todayLeft : left+1.2);
@@ -613,7 +618,7 @@ function renderRegister(){
   if(!rows.length){ el.innerHTML = '<div class="empty">No records for this filter.</div>'; return; }
   const body = rows.map(r=>{
     const fit = fitInfo(r["Budžet klijenta (EUR)"]);
-    const isFishing = r["Fishing (samo sondiranje)"]==="__YES__" || r["Status"]==="Fishing/Sumnjivo";
+    const isFishing = isFishingRow(r);
     const isRealized = r["Status"]==="Realizovano";
     const next = r["date:Najavljeni pocetak (po HH):start"] ? ["Promised start", r["date:Najavljeni pocetak (po HH):start"]]
       : (r["date:Datum intervjua:start"] ? ["Interview", r["date:Datum intervjua:start"]]
