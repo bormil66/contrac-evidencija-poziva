@@ -629,7 +629,7 @@ function renderRegister(){
       : '<span class="record-name'+(isFishing?' record-fishing':'')+'">'+clientName+'</span>';
     const notesText = esc(r["Napomene"] || "");
     const statusBadge = r["Status"] === "Odbijeno"
-      ? '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'" title="'+notesText+'">'+esc(sl(r["Status"]))+'</span>'
+      ? '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'" title="'+notesText+'" style="cursor:'+(notesText ? 'help' : 'default')+'">'+esc(sl(r["Status"]))+'</span>'
       : '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span>';
     return '<tr data-id="'+esc(r.id)+'" style="cursor:pointer">'
       + '<td><div style="display:flex;align-items:center;gap:6px">'+clientLabel+(isFishing?'<span class="badge-danger" style="margin-left:4px">fishing</span>':'')+'</div>'
