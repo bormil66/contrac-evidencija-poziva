@@ -16,7 +16,7 @@ Ovo je samostalna (standalone) verzija Freelance Evidencija dashboarda koji si p
 1. Idi na [notion.so/my-integrations](https://www.notion.so/my-integrations) i napravi novu internal integraciju (npr. "Freelance Ledger Web").
 2. Kopiraj njen **Internal Integration Token** (počinje sa `secret_...`) — to ide u `NOTION_TOKEN`.
 3. Otvori svoju "Freelance Evidencija" bazu u Notion-u, klikni "..." (gore desno) → **Connections** → dodaj integraciju koju si upravo napravio. Bez ovog koraka API neće vidjeti bazu.
-4. `NOTION_DATABASE_ID` je već popunjen u `.env.example` (`35f92016-6f42-4caa-886f-077989d90e6e`) — to je ID tvoje postojeće baze, ne treba ga mijenjati osim ako praviš novu bazu.
+4. `NOTION_DATABASE_ID` je već popunjen u `.env.example` (`277ba29b-0656-41cd-8c22-1dafdb2dd8e5`) — to je ID tvoje postojeće baze (uzet direktno iz njenog Notion URL-a), ne treba ga mijenjati osim ako praviš novu bazu.
 
 ## Korak 2 — (opciono) AI unos emaila
 
