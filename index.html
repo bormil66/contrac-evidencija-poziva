@@ -83,6 +83,9 @@ textarea.input{min-height:90px;resize:vertical}
 .record-name{font-family:var(--font-heading);font-weight:600;font-size:16px;line-height:1.1}
 .record-fishing{color:#c0392b;font-style:italic;font-weight:700}
 .record-realized{color:#2e7d32;font-weight:700}
+.status-tooltip{position:relative;cursor:help}
+.status-tooltip::after{content:attr(data-tooltip);position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);background:var(--color-neutral-900);color:var(--color-bg);padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.35;white-space:pre-wrap;max-width:min(280px, 70vw);box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:opacity .12s ease;z-index:50}
+.status-tooltip:hover::after,.status-tooltip:focus::after{opacity:1}
 .empty{color:var(--color-neutral-600);font-size:13px;padding:18px 0;text-align:center}
 .drawer-back{position:fixed;inset:0;background:color-mix(in srgb,var(--color-neutral-900) 46%,transparent);z-index:40;display:none}
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(470px,94vw);background:var(--color-bg);
@@ -631,7 +634,7 @@ function renderRegister(){
       : '<span class="record-name'+(isFishing?' record-fishing':'')+'">'+clientName+'</span>';
     const notesText = esc(r["Napomene"] || "");
     const statusBadge = r["Status"] === "Odbijeno"
-      ? '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'" title="'+notesText+'" style="cursor:'+(notesText ? 'help' : 'default')+'">'+esc(sl(r["Status"]))+'</span>'
+      ? '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+' status-tooltip"'+(notesText ? ' data-tooltip="'+notesText+'"' : '')+' style="'+(notesText ? 'cursor:help;' : 'cursor:default;')+'">'+esc(sl(r["Status"]))+'</span>'
       : '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span>';
     return '<tr data-id="'+esc(r.id)+'" style="cursor:pointer">'
       + '<td><div style="display:flex;align-items:center;gap:6px">'+clientLabel+(isFishing?'<span class="badge-danger" style="margin-left:4px">fishing</span>':'')+'</div>'
