@@ -509,6 +509,8 @@ function renderGantt(){
     const first = r["date:Datum prvog kontakta:start"];
     const start = r["date:Najavljeni pocetak (po HH):start"] || r["date:Datum realizacije:start"];
     const openLead = OPEN_STATUSES.includes(r["Status"]);
+    const isFishing = r["Fishing (samo sondiranje)"]==="__YES__" || r["Status"]==="Fishing/Sumnjivo";
+    const isRealized = r["Status"]==="Realizovano";
     const left = first ? pct(first) : 0;
     const end = start ? pct(start) : (openLead ? todayLeft : left+1.2);
     const budget = r["Budžet klijenta (EUR)"];
@@ -517,10 +519,15 @@ function renderGantt(){
     [[r["date:Datum intervjua:start"],"✕"],[r["date:Datum dogovora:start"],"●"],[start,"▸"]].forEach(([d,g])=>{
       if(d) marks += '<div style="position:absolute;top:9px;left:'+pct(d)+'%;transform:translateX(-50%);font-size:12px;line-height:1;color:var(--color-accent-800)">'+g+'</div>';
     });
+    const clientName = esc(r["Klijent/Naziv"]||"Untitled");
+    const clientLabel = isRealized
+      ? '<span class="badge-success">'+clientName+'</span>'
+      : '<span style="font-family:var(--font-heading);font-weight:600;font-size:16px;line-height:1.1">'+clientName+'</span>';
     return '<div class="gr grow" data-id="'+esc(r.id)+'">'
       + '<div style="padding:10px 14px;border-right:1px solid var(--color-divider)">'
       +   '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'
-      +     '<span style="font-family:var(--font-heading);font-weight:600;font-size:16px;line-height:1.1">'+esc(r["Klijent/Naziv"]||"Untitled")+'</span>'
+      +     clientLabel
+      +     (isFishing?'<span class="badge-danger">fishing</span>':'')
       +     '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span>'
       +   '</div>'
       +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc([r["HH Firma"],r["Kontakt osoba (HH)"]].filter(Boolean).join(" · ")||"direct")+'</div>'
@@ -603,12 +610,17 @@ function renderRegister(){
   if(!rows.length){ el.innerHTML = '<div class="empty">No records for this filter.</div>'; return; }
   const body = rows.map(r=>{
     const fit = fitInfo(r["Budžet klijenta (EUR)"]);
+    const isFishing = r["Fishing (samo sondiranje)"]==="__YES__" || r["Status"]==="Fishing/Sumnjivo";
+    const isRealized = r["Status"]==="Realizovano";
     const next = r["date:Najavljeni pocetak (po HH):start"] ? ["Promised start", r["date:Najavljeni pocetak (po HH):start"]]
       : (r["date:Datum intervjua:start"] ? ["Interview", r["date:Datum intervjua:start"]]
       : ["First contact", r["date:Datum prvog kontakta:start"]]);
+    const clientName = esc(r["Klijent/Naziv"]||"Untitled");
+    const clientLabel = isRealized
+      ? '<span class="badge-success">'+clientName+'</span>'
+      : '<span style="font-family:var(--font-heading);font-weight:600;font-size:16px">'+clientName+'</span>';
     return '<tr data-id="'+esc(r.id)+'" style="cursor:pointer">'
-      + '<td><div style="display:flex;align-items:center;gap:6px"><span style="font-family:var(--font-heading);font-weight:600;font-size:16px">'
-      +   esc(r["Klijent/Naziv"]||"Untitled")+'</span></div>'
+      + '<td><div style="display:flex;align-items:center;gap:6px">'+clientLabel+(isFishing?'<span class="badge-danger" style="margin-left:4px">fishing</span>':'')+'</div>'
       +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["Radni mod"]||"—")+'</div></td>'
       + '<td style="font-size:13px">'+esc(r["HH Firma"]||"direktno")+'<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["Kontakt osoba (HH)"]||"—")+'</div></td>'
       + '<td style="font-size:13px">'+esc(r["SAP Fokus"]||"—")+'</td>'
