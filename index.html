@@ -610,7 +610,7 @@ function renderDurChart(){
 
 function renderRegister(){
   const q = tableQuery.toLowerCase();
-  const rows = visibleLeads().filter(r=>{
+  const rows = currentRows.filter(r=>{
     if(!q) return true;
     return [r["Klijent/Naziv"],r["HH Firma"],r["Kontakt osoba (HH)"],r["SAP Fokus"],r["Status"]]
       .filter(Boolean).join(" ").toLowerCase().includes(q);
