@@ -627,12 +627,16 @@ function renderRegister(){
     const clientLabel = isRealized
       ? '<span class="badge-success record-realized">'+clientName+'</span>'
       : '<span class="record-name'+(isFishing?' record-fishing':'')+'">'+clientName+'</span>';
+    const notesText = esc(r["Napomene"] || "");
+    const statusBadge = r["Status"] === "Odbijeno"
+      ? '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'" title="'+notesText+'">'+esc(sl(r["Status"]))+'</span>'
+      : '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span>';
     return '<tr data-id="'+esc(r.id)+'" style="cursor:pointer">'
       + '<td><div style="display:flex;align-items:center;gap:6px">'+clientLabel+(isFishing?'<span class="badge-danger" style="margin-left:4px">fishing</span>':'')+'</div>'
       +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["Radni mod"]||"—")+'</div></td>'
       + '<td style="font-size:13px">'+esc(r["HH Firma"]||"direktno")+'<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["Kontakt osoba (HH)"]||"—")+'</div></td>'
       + '<td style="font-size:13px">'+esc(r["SAP Fokus"]||"—")+'</td>'
-      + '<td><span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span></td>'
+      + '<td>'+statusBadge+'</td>'
       + '<td style="font-size:13px;text-align:right">'+(r["Broj kontakata (pozivi/email)"] ?? "—")+'</td>'
       + '<td><div style="font-size:13px">'+(r["Budžet klijenta (EUR)"]!=null?r["Budžet klijenta (EUR)"]+" €/d":"—")+'</div>'
       +   '<div style="font-size:11px;color:'+fit.color+'">'+fit.label+'</div></td>'
