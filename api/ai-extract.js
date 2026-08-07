@@ -12,6 +12,7 @@
  */
 const DEEPSEEK_API = "https://api.deepseek.com/chat/completions";
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
+const { blockIfReadOnly } = require("../lib/auth");
 
 function buildPrompt(text) {
   return 'From the following freelance job-offer email, extract the data and return ONLY valid JSON — no markdown, no explanation — exactly in this shape: ' +
@@ -70,6 +71,7 @@ async function callAnthropic(apiKey, prompt) {
 }
 
 module.exports = async (req, res) => {
+  if (!blockIfReadOnly(res)) return;
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
