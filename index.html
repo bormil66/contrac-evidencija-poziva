@@ -469,14 +469,16 @@ function renderFilter(){
     '<span class="seg-opt'+(pipeFilter===k?" on":"")+'" data-f="'+k+'">'+l+'</span>').join("");
 }
 
+function matchesLeadFilter(r){
+  const open = OPEN_STATUSES.includes(r["Status"]);
+  if(pipeFilter==="all") return true;
+  if(pipeFilter==="open") return open;
+  if(pipeFilter==="hot") return open && (r["Broj kontakata (pozivi/email)"]||0) >= 3;
+  return !open;
+}
+
 function visibleLeads(){
-  return currentRows.filter(r=>{
-    const open = OPEN_STATUSES.includes(r["Status"]);
-    if(pipeFilter==="all") return true;
-    if(pipeFilter==="open") return open;
-    if(pipeFilter==="hot") return open && (r["Broj kontakata (pozivi/email)"]||0) >= 3;
-    return !open;
-  });
+  return currentRows.filter(matchesLeadFilter);
 }
 
 function ganttRange(rows){
@@ -831,7 +833,9 @@ document.getElementById("refresh-btn").addEventListener("click", ()=>loadRows(tr
 document.getElementById("drawer-back").addEventListener("click", closeDrawer);
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDrawer(); });
 document.getElementById("pipe-filter").addEventListener("click", e=>{
-  const f = e.target.dataset.f; if(!f) return;
+  const el = e.target.closest("[data-f]");
+  const f = el ? el.dataset.f : null;
+  if(!f || f===pipeFilter) return;
   pipeFilter = f; renderFilter(); renderGantt(); renderRegister();
 });
 document.getElementById("table-search").addEventListener("input", e=>{ tableQuery = e.target.value; renderRegister(); });
