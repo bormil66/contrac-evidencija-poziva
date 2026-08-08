@@ -173,6 +173,7 @@ textarea.input{min-height:90px;resize:vertical}
     <div class="sechd">
       <h4 style="margin:0">Inquiry register</h4>
       <span class="muted" id="table-count" style="margin-right:auto"></span>
+      <div class="seg" id="register-filter"></div>
       <input class="input" id="table-search" placeholder="Search client, agency, contact…" style="width:260px;min-height:32px">
     </div>
     <div class="blueprint" style="padding:2px 16px 6px">
@@ -235,6 +236,7 @@ const TAGS = { "Novo":"tag-neutral","U razgovoru":"tag-neutral","Pregovori budž
 
 let currentRows = [];
 let pipeFilter = "open";
+let registerFilter = "all";
 let tableQuery = "";
 let aiEnabled = false;
 
@@ -378,7 +380,7 @@ async function deleteRow(id){
 
 /* ── render (unchanged from the Cowork version — same shape of currentRows) ── */
 function renderAll(){
-  renderHero(); renderKpis(); renderBench(); renderFilter();
+  renderHero(); renderKpis(); renderBench(); renderFilter(); renderRegisterFilter();
   renderGantt(); renderRateChart(); renderDurChart(); renderRegister(); renderAiTargets();
 }
 
@@ -472,12 +474,23 @@ function renderFilter(){
     '<span class="seg-opt'+(pipeFilter===k?" on":"")+'" data-f="'+k+'">'+l+'</span>').join("");
 }
 
+function renderRegisterFilter(){
+  const defs = [["all","All"],["Realizovano","Realized"],["Odbijeno","Rejected"]];
+  document.getElementById("register-filter").innerHTML = defs.map(([k,l])=>
+    '<span class="seg-opt'+(registerFilter===k?" on":"")+'" data-f="'+k+'">'+l+'</span>').join("");
+}
+
 function matchesLeadFilter(r){
   const open = OPEN_STATUSES.includes(r["Status"]);
   if(pipeFilter==="all") return true;
   if(pipeFilter==="open") return open;
   if(pipeFilter==="hot") return open && (r["Broj kontakata (pozivi/email)"]||0) >= 3;
   return !open;
+}
+
+function matchesRegisterFilter(r){
+  if(registerFilter==="all") return true;
+  return r["Status"] === registerFilter;
 }
 
 function visibleLeads(){
@@ -614,6 +627,7 @@ function renderDurChart(){
 function renderRegister(){
   const q = tableQuery.toLowerCase();
   const rows = currentRows.filter(r=>{
+    if(!matchesRegisterFilter(r)) return false;
     if(!q) return true;
     return [r["Klijent/Naziv"],r["HH Firma"],r["Kontakt osoba (HH)"],r["SAP Fokus"],r["Status"]]
       .filter(Boolean).join(" ").toLowerCase().includes(q);
@@ -840,6 +854,12 @@ document.getElementById("pipe-filter").addEventListener("click", e=>{
   const f = el ? el.dataset.f : null;
   if(!f || f===pipeFilter) return;
   pipeFilter = f; renderFilter(); renderGantt(); renderRegister();
+});
+document.getElementById("register-filter").addEventListener("click", e=>{
+  const el = e.target.closest("[data-f]");
+  const f = el ? el.dataset.f : null;
+  if(!f || f===registerFilter) return;
+  registerFilter = f; renderRegisterFilter(); renderRegister();
 });
 document.getElementById("table-search").addEventListener("input", e=>{ tableQuery = e.target.value; renderRegister(); });
 
