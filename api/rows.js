@@ -1,4 +1,5 @@
 const { queryAllRows, createRow } = require("../lib/notion");
+const { blockIfReadOnly } = require("../lib/auth");
 
 module.exports = async (req, res) => {
   try {
@@ -8,6 +9,7 @@ module.exports = async (req, res) => {
       return;
     }
     if (req.method === "POST") {
+      if (!blockIfReadOnly(res)) return;
       const row = await createRow(req.body || {});
       res.status(200).json({ row });
       return;

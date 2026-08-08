@@ -846,5 +846,47 @@ document.getElementById("table-search").addEventListener("input", e=>{ tableQuer
 loadConfig();
 loadRows(false);
 </script>
+<script>
+(function () {
+  fetch("/api/config")
+    .then(function (r) { return r.json(); })
+    .then(function (cfg) {
+      if (!cfg || !cfg.readOnly) return; // nije read-only deployment, ne radi ništa
+
+      // Sakrij AI email-intake karticu.
+      ["ai-target-lead", "ai-email-text", "ai-save-btn", "ai-status"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = "none";
+      });
+      var intakeLeft = document.getElementById("intake-left");
+      if (intakeLeft) {
+        var node = intakeLeft;
+        while (node && node.parentElement && node.offsetHeight < 100) node = node.parentElement;
+        (node || intakeLeft).style.display = "none";
+      }
+
+      // U drawer-u za detalje: onemogući polja i sakrij Save/Delete dugmad.
+      var drawer = document.getElementById("drawer");
+      if (drawer) {
+        var lockDrawer = function () {
+          drawer.querySelectorAll("input, select, textarea").forEach(function (el) {
+            el.setAttribute("disabled", "disabled");
+          });
+          drawer.querySelectorAll("button").forEach(function (btn) {
+            var t = (btn.textContent || "").toLowerCase();
+            if (t.indexOf("save") !== -1 || t.indexOf("sačuvaj") !== -1 || t.indexOf("sacuvaj") !== -1 ||
+                t.indexOf("spremi") !== -1 || t.indexOf("delete") !== -1 || t.indexOf("obriš") !== -1 ||
+                t.indexOf("obrisi") !== -1) {
+              btn.style.display = "none";
+            }
+          });
+        };
+        lockDrawer();
+        new MutationObserver(lockDrawer).observe(drawer, { childList: true, subtree: true });
+      }
+    })
+    .catch(function () { /* ako /api/config ne uspije, ne radi ništa - polja ostaju kao prije */ });
+})();
+</script>
 </body>
 </html>
