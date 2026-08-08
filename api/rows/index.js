@@ -1,4 +1,4 @@
-const { updateRow, archiveRow } = require("../../lib/supabase");
+const { queryAllRows, createRow } = require("../../lib/supabase");
 
 /** Pulls the caller's JWT out of the Authorization header. */
 function getAccessToken(req) {
@@ -14,21 +14,15 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const { id } = req.query;
-    if (!id) {
-      res.status(400).json({ error: "Nedostaje id." });
+    if (req.method === "GET") {
+      const rows = await queryAllRows(token);
+      res.status(200).json({ rows });
       return;
     }
 
-    if (req.method === "PATCH" || req.method === "PUT") {
-      const row = await updateRow(token, id, req.body || {});
+    if (req.method === "POST") {
+      const row = await createRow(token, req.body || {});
       res.status(200).json({ row });
-      return;
-    }
-
-    if (req.method === "DELETE") {
-      const result = await archiveRow(token, id);
-      res.status(200).json(result);
       return;
     }
 

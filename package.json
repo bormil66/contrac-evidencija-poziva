@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "Freelance Ledger — standalone web verzija Freelance Evidencija dashboarda, backed direktno na Notion API, deploy na Vercel.",
-  "scripts": {
-   
+  "scripts": {},
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.2"
   }
 }

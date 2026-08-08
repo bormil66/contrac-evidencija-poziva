@@ -107,6 +107,21 @@ textarea.input{min-height:90px;resize:vertical}
 </style>
 </head>
 <body>
+<div id="auth-gate" style="position:fixed;inset:0;z-index:9999;display:none;
+     align-items:center;justify-content:center;background:var(--color-bg,#0d0d0d)">
+  <div class="blueprint" style="padding:28px 32px;min-width:320px">
+    <i class="corner tl"></i><i class="corner tr"></i>
+    <i class="corner bl"></i><i class="corner br"></i>
+    <h2 style="margin:0 0 4px">Sign in</h2>
+    <div class="muted" style="margin-bottom:16px">Contractor register</div>
+    <input class="input" id="auth-email" type="email" placeholder="email"
+           style="width:100%;margin-bottom:8px">
+    <input class="input" id="auth-pass" type="password" placeholder="password"
+           style="width:100%;margin-bottom:12px">
+    <button class="btn" id="auth-btn" style="width:100%">Sign in</button>
+    <div id="auth-err" class="muted" style="margin-top:10px;color:#e06060"></div>
+  </div>
+</div>
 
 <div class="nav">
   <span class="nav-brand">FREELANCE LEDGER<span style="color:var(--color-accent)"> / SAP</span></span>
@@ -205,7 +220,7 @@ textarea.input{min-height:90px;resize:vertical}
       </div>
       <div style="border-left:1px solid var(--color-divider);padding-left:26px">
         <h6 style="margin-bottom:12px">Status</h6>
-        <div class="muted" style="margin-bottom:10px">Every change here writes straight to Notion. Inquiries with no activity for 15+ days are auto-flagged as fishing.</div>
+        <div class="muted" style="margin-bottom:10px">Every change here writes straight to the database. Inquiries with no activity for 15+ days are auto-flagged as fishing.</div>
         <div id="sync-notice"></div>
       </div>
     </div>
@@ -217,22 +232,23 @@ textarea.input{min-height:90px;resize:vertical}
   <div class="drawer" id="drawer"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const OPEN_STATUSES = ["Novo", "U razgovoru", "Pregovori budžeta", "Intervju", "Dogovoreno"];
-const STATUS_OPTIONS = ["Novo", "U razgovoru", "Pregovori budžeta", "Intervju", "Dogovoreno", "Realizovano", "Odbijeno", "Fishing/Sumnjivo"];
-const RADNI_MOD_OPTIONS = ["", "Remote", "On-site", "Hibrid"];
-const NACIN_DOLASKA_OPTIONS = ["", "Preko HH (posrednika)", "Direktno od klijenta"];
+const OPEN_STATUSES = ["new", "in_conversation", "budget_negotiation", "interview", "agreed"];
+const STATUS_OPTIONS = ["new", "in_conversation", "budget_negotiation", "interview", "agreed", "delivered", "rejected", "fishing_suspicious"];
+const RADNI_MOD_OPTIONS = ["", "remote", "onsite", "hybrid"];
+const NACIN_DOLASKA_OPTIONS = ["", "via_headhunter", "direct_client"];
 const SAP_FOKUS_OPTIONS = ["", "Signavio", "SAP Solution Manager ChaRM", "SAP Solution Manager FB", "SAP CALM", "Ostalo"];
 const MY_DAY_RATE = 800, MARKET_MIN = 500, MARKET_MAX = 700;
 const INACTIVITY_THRESHOLD_DAYS = 7;
 const MJ = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAY = 86400000;
-const STATUS_LABEL = { "Novo":"New","U razgovoru":"In conversation","Pregovori budžeta":"Budget talks",
-  "Intervju":"Interview","Dogovoreno":"Agreed","Realizovano":"Realized","Odbijeno":"Rejected","Fishing/Sumnjivo":"Fishing" };
+const STATUS_LABEL = { "new":"New","in_conversation":"In conversation","budget_negotiation":"Budget talks",
+  "interview":"Interview","agreed":"Agreed","delivered":"Realized","rejected":"Rejected","fishing_suspicious":"Fishing" };
 const sl = s => STATUS_LABEL[s] || s || "—";
-const TAGS = { "Novo":"tag-neutral","U razgovoru":"tag-neutral","Pregovori budžeta":"tag-accent",
-  "Intervju":"tag-accent","Dogovoreno":"tag-outline","Realizovano":"tag-outline",
-  "Odbijeno":"tag-neutral","Fishing/Sumnjivo":"tag-neutral" };
+const TAGS = { "new":"tag-neutral","in_conversation":"tag-neutral","budget_negotiation":"tag-accent",
+  "interview":"tag-accent","agreed":"tag-outline","delivered":"tag-outline",
+  "rejected":"tag-neutral","fishing_suspicious":"tag-neutral" };
 
 let currentRows = [];
 let pipeFilter = "open";
@@ -259,30 +275,31 @@ function fitInfo(b){
   return { label:"meets my rate", color:"var(--color-accent-900)" };
 }
 function isFishingRow(r){
-  const status = String(r["Status"] ?? "").trim();
-  const fishingFlag = String(r["Fishing (samo sondiranje)"] ?? "").trim();
-  return fishingFlag === "__YES__" || /fishing/i.test(status);
+  const status = String(r["status"] ?? "").trim();
+  return r.is_fishing === true || /fishing/i.test(status);
 }
 function realizedSorted(rows){
-  return rows.filter(r=>r["Status"]==="Realizovano" && r["date:Datum realizacije:start"])
-    .map(r=>Object.assign({},r,{ startDate:new Date(r["date:Datum realizacije:start"]) }))
+  return rows.filter(r=>r["status"]==="delivered" && r["delivered_at"])
+    .map(r=>Object.assign({},r,{ startDate:new Date(r["delivered_at"]) }))
     .filter(r=>!isNaN(r.startDate)).sort((a,b)=>a.startDate-b.startDate);
 }
 function projEnd(p){
-  const t = p["Stvarno trajanje (mjeseci)"] ?? p["Najavljeno trajanje (mjeseci)"];
+  const t = p["actual_duration_months"] ?? p["promised_duration_months"];
   return t==null ? null : addMonths(p.startDate, t);
 }
+let accessToken = null;
+
 async function api(path, options){
-  const res = await fetch("/api" + path, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options && options.headers) },
-  });
+  const headers = { "Content-Type": "application/json",
+                    ...(options && options.headers) };
+  if(accessToken) headers.Authorization = "Bearer " + accessToken;
+  const res = await fetch("/api" + path, { ...options, headers });
   const data = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(data.error || ("Request failed (" + res.status + ")"));
   return data;
 }
 
-/* ── load / save (talks to our own /api routes, backed by the real Notion API) ── */
+/* ── load / save (talks to our own /api routes, backed by Supabase) ── */
 async function loadConfig(){
   let provider = null;
   try{
@@ -318,28 +335,28 @@ async function loadRows(isRefresh){
     tag.textContent = "error";
     document.getElementById("notice-slot").innerHTML =
       '<div class="blueprint" style="padding:12px 16px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>'
-      + '<div class="status-msg error" style="margin:0">Could not load from Notion: ' + esc(err.message) + '. Check that NOTION_TOKEN and NOTION_DATABASE_ID are set correctly on the server.</div></div>';
+      + '<div class="status-msg error" style="margin:0">Could not load data: ' + esc(err.message) + '. Check that SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are set on the server.</div></div>';
   }finally{
     btn.disabled = false;
   }
 }
 
-// Detects inquiries with no activity for 15+ days and pushes the fishing flag straight to Notion.
+// Flags inquiries with no activity for INACTIVITY_THRESHOLD_DAYS and pushes the change to the database.
 async function applyAutoFishingAndPush(rows){
   const today = new Date();
   for(const r of rows){
-    if(!OPEN_STATUSES.includes(r["Status"])) continue;
-    const dates = [r["date:Datum prvog kontakta:start"], r["date:Datum dogovora:start"], r["date:Datum intervjua:start"]]
+    if(!OPEN_STATUSES.includes(r["status"])) continue;
+    const dates = [r["first_contact_at"], r["agreed_at"], r["interview_at"]]
       .filter(Boolean).map(d=>new Date(d)).filter(d=>!isNaN(d));
     if(!dates.length) continue;
     const last = dates.sort((a,b)=>b-a)[0];
     if(Math.floor((today-last)/DAY) >= INACTIVITY_THRESHOLD_DAYS){
-      r["Status"] = "Fishing/Sumnjivo";
-      r["Fishing (samo sondiranje)"] = "__YES__";
+      r["status"] = "fishing_suspicious";
+      r.is_fishing = true;
       try{
         await api("/rows/" + encodeURIComponent(r.id), {
           method: "PATCH",
-          body: JSON.stringify({ "Status": r["Status"], "Fishing (samo sondiranje)": r["Fishing (samo sondiranje)"] })
+          body: JSON.stringify({ "status": r["status"], "is_fishing": r.is_fishing })
         });
       }catch(e){ /* keep the local flag even if the push fails; next load will retry */ }
     }
@@ -364,8 +381,8 @@ async function patchRow(id, partial){
 async function deleteRow(id){
   const row = currentRows.find(r=>r.id===id);
   if(!row) return;
-  const label = row["Klijent/Naziv"] || row["HH Firma"] || "this inquiry";
-  if(!window.confirm('Delete "'+label+'"? This archives the page in Notion.')) return;
+  const label = row["client_name"] || row["hh_company"] || "this inquiry";
+  if(!window.confirm('Delete "'+label+'"? This archives the record.')) return;
   const statusEl = document.getElementById("modal-status");
   if(statusEl){ statusEl.textContent = "Deleting…"; statusEl.className = "status-msg"; }
   try{
@@ -394,8 +411,8 @@ function renderHero(){
   const lastEnd = proj.length ? projEnd(proj[proj.length-1]) : null;
   const benchDays = lastEnd ? Math.max(Math.round((new Date()-lastEnd)/DAY),0) : null;
   const bench = benchDays!=null ? (benchDays/30.4).toFixed(1) : null;
-  const starts = rows.filter(r=>OPEN_STATUSES.includes(r["Status"]) && r["date:Najavljeni pocetak (po HH):start"])
-    .map(r=>r["date:Najavljeni pocetak (po HH):start"]).sort();
+  const starts = rows.filter(r=>OPEN_STATUSES.includes(r["status"]) && r["promised_start_date"])
+    .map(r=>r["promised_start_date"]).sort();
   const avg = gaps.length ? (gaps.reduce((a,b)=>a+b,0)/gaps.length/30.4).toFixed(1)+" mo" : "—";
   const worst = gaps.length ? (Math.max.apply(null,gaps)/30.4).toFixed(1)+" mo" : "—";
   const nearest = starts.length ? fmtD(starts[0]).replace(/ \d{4}$/,"") : "—";
@@ -417,11 +434,11 @@ function heroCell(v,l){
 
 function renderKpis(){
   const rows = currentRows, total = rows.length;
-  const open = rows.filter(r=>OPEN_STATUSES.includes(r["Status"])).length;
-  const realized = rows.filter(r=>r["Status"]==="Realizovano").length;
-  const touch = rows.map(r=>r["Broj kontakata (pozivi/email)"]).filter(v=>v!=null);
+  const open = rows.filter(r=>OPEN_STATUSES.includes(r["status"])).length;
+  const realized = rows.filter(r=>r["status"]==="delivered").length;
+  const touch = rows.map(r=>r["contact_count"]).filter(v=>v!=null);
   const avgTouch = touch.length ? (touch.reduce((a,b)=>a+b,0)/touch.length).toFixed(1) : "—";
-  const fishing = rows.filter(r=>r["Fishing (samo sondiranje)"]==="__YES__").length;
+  const fishing = rows.filter(r=>r.is_fishing===true).length;
   const kpis = [
     { v:open, l:"Open inquiries", n:total+" records total" },
     { v:realized+" / "+total, l:"Inquiry → contract", n:total?Math.round(realized/total*100)+"% conversion":"no data" },
@@ -445,7 +462,7 @@ function renderBench(){
   proj.forEach(p=>{
     const end = projEnd(p);
     html += block(hp(cursor), hp(p.startDate)-hp(cursor), bench, "", "");
-    html += block(hp(p.startDate), hp(end)-hp(p.startDate), "var(--color-accent)", esc(p["Klijent/Naziv"]||""), esc(p["Klijent/Naziv"]||""));
+    html += block(hp(p.startDate), hp(end)-hp(p.startDate), "var(--color-accent)", esc(p["client_name"]||""), esc(p["client_name"]||""));
     cursor = end;
   });
   html += block(hp(cursor), 100-hp(cursor), benchNow, "", "");
@@ -475,22 +492,22 @@ function renderFilter(){
 }
 
 function renderRegisterFilter(){
-  const defs = [["all","All"],["Realizovano","Realized"],["Odbijeno","Rejected"]];
+  const defs = [["all","All"],["delivered","Realized"],["rejected","Rejected"]];
   document.getElementById("register-filter").innerHTML = defs.map(([k,l])=>
     '<span class="seg-opt'+(registerFilter===k?" on":"")+'" data-f="'+k+'">'+l+'</span>').join("");
 }
 
 function matchesLeadFilter(r){
-  const open = OPEN_STATUSES.includes(r["Status"]);
+  const open = OPEN_STATUSES.includes(r["status"]);
   if(pipeFilter==="all") return true;
   if(pipeFilter==="open") return open;
-  if(pipeFilter==="hot") return open && (r["Broj kontakata (pozivi/email)"]||0) >= 3;
+  if(pipeFilter==="hot") return open && (r["contact_count"]||0) >= 3;
   return !open;
 }
 
 function matchesRegisterFilter(r){
   if(registerFilter==="all") return true;
-  return r["Status"] === registerFilter;
+  return r["status"] === registerFilter;
 }
 
 function visibleLeads(){
@@ -500,8 +517,8 @@ function visibleLeads(){
 function ganttRange(rows){
   const dates = [];
   rows.forEach(r=>{
-    ["date:Datum prvog kontakta:start","date:Datum intervjua:start","date:Datum dogovora:start",
-     "date:Najavljeni pocetak (po HH):start","date:Datum realizacije:start"].forEach(k=>{
+    ["first_contact_at","interview_at","agreed_at",
+     "promised_start_date","delivered_at"].forEach(k=>{
       if(r[k]) dates.push(new Date(r[k]));
     });
   });
@@ -532,20 +549,20 @@ function renderGantt(){
   const todayLeft = pct(new Date());
 
   const body = rows.map(r=>{
-    const first = r["date:Datum prvog kontakta:start"];
-    const start = r["date:Najavljeni pocetak (po HH):start"] || r["date:Datum realizacije:start"];
-    const openLead = OPEN_STATUSES.includes(r["Status"]);
+    const first = r["first_contact_at"];
+    const start = r["promised_start_date"] || r["delivered_at"];
+    const openLead = OPEN_STATUSES.includes(r["status"]);
     const isFishing = isFishingRow(r);
-    const isRealized = r["Status"]==="Realizovano";
+    const isRealized = r["status"]==="delivered";
     const left = first ? pct(first) : 0;
     const end = start ? pct(start) : (openLead ? todayLeft : left+1.2);
-    const budget = r["Budžet klijenta (EUR)"];
+    const budget = r["client_budget_eur"];
     const fill = !openLead ? "var(--color-neutral-300)" : (budget!=null && budget>=MY_DAY_RATE ? "var(--color-accent-800)" : "var(--color-accent-400)");
     let marks = "";
-    [[r["date:Datum intervjua:start"],"✕"],[r["date:Datum dogovora:start"],"●"],[start,"▸"]].forEach(([d,g])=>{
+    [[r["interview_at"],"✕"],[r["agreed_at"],"●"],[start,"▸"]].forEach(([d,g])=>{
       if(d) marks += '<div style="position:absolute;top:9px;left:'+pct(d)+'%;transform:translateX(-50%);font-size:12px;line-height:1;color:var(--color-accent-800)">'+g+'</div>';
     });
-    const clientName = esc(r["Klijent/Naziv"]||"Untitled");
+    const clientName = esc(r["client_name"]||"Untitled");
     const clientLabel = isRealized
       ? '<span class="badge-success record-realized">'+clientName+'</span>'
       : '<span class="record-name'+(isFishing?' record-fishing':'')+'">'+clientName+'</span>';
@@ -554,9 +571,9 @@ function renderGantt(){
       +   '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">'
       +     clientLabel
       +     (isFishing?'<span class="badge-danger">fishing</span>':'')
-      +     '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span>'
+      +     '<span class="tag '+(TAGS[r["status"]]||"tag-neutral")+'">'+esc(sl(r["status"]))+'</span>'
       +   '</div>'
-      +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc([r["HH Firma"],r["Kontakt osoba (HH)"]].filter(Boolean).join(" · ")||"direct")+'</div>'
+      +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc([r["hh_company"],r["hh_contact_person"]].filter(Boolean).join(" · ")||"direct")+'</div>'
       + '</div>'
       + '<div style="position:relative;height:52px">' + grid
       +   '<div style="position:absolute;top:0;bottom:0;left:'+todayLeft+'%;border-left:1px dashed var(--color-accent)"></div>'
@@ -579,19 +596,19 @@ function renderGantt(){
 
 function renderRateChart(){
   document.getElementById("rate-legend").textContent = "band = "+MARKET_MIN+"–"+MARKET_MAX+" € · line = my rate "+MY_DAY_RATE+" €";
-  const withB = currentRows.filter(r=>r["Budžet klijenta (EUR)"]!=null && r["Budžet klijenta (EUR)"]!=="")
-    .sort((a,b)=>b["Budžet klijenta (EUR)"]-a["Budžet klijenta (EUR)"]);
+  const withB = currentRows.filter(r=>r["client_budget_eur"]!=null && r["client_budget_eur"]!=="")
+    .sort((a,b)=>b["client_budget_eur"]-a["client_budget_eur"]);
   const el = document.getElementById("rate-chart");
   if(!withB.length){ el.innerHTML = '<div class="empty">No inquiry has a client budget recorded yet.</div>'; return; }
-  const R0 = 400, R1 = Math.max(900, MY_DAY_RATE+100, Math.max.apply(null,withB.map(r=>r["Budžet klijenta (EUR)"]))+50);
+  const R0 = 400, R1 = Math.max(900, MY_DAY_RATE+100, Math.max.apply(null,withB.map(r=>r["client_budget_eur"]))+50);
   const rp = v => ((v-R0)/(R1-R0))*100;
   const bars = withB.map(r=>{
-    const b = r["Budžet klijenta (EUR)"];
+    const b = r["client_budget_eur"];
     const fill = b>=MY_DAY_RATE ? "var(--color-accent-800)" : (b>=MARKET_MIN ? "var(--color-accent-400)" : "var(--color-neutral-300)");
     return '<div style="position:relative;height:22px">'
       + '<div style="position:absolute;top:4px;left:0;width:'+Math.max(rp(b),0)+'%;height:14px;background:'+fill+';border:1px solid var(--color-accent-700)"></div>'
       + '<div style="position:absolute;top:4px;left:'+Math.max(rp(b),0)+'%;font-size:11.5px;line-height:14px;padding-left:8px;white-space:nowrap;color:var(--color-neutral-800)">'
-      +   esc(r["Klijent/Naziv"]||r["HH Firma"]||"inquiry")+' · '+b+' €</div></div>';
+      +   esc(r["client_name"]||r["hh_company"]||"inquiry")+' · '+b+' €</div></div>';
   }).join("");
   const ticks = [];
   for(let v=R0; v<=R1; v+=100) ticks.push('<div style="position:absolute;top:5px;left:'+rp(v)+'%;transform:translateX(-50%);font-size:10.5px;color:var(--color-neutral-600)">'+v+'€</div>');
@@ -603,22 +620,22 @@ function renderRateChart(){
 }
 
 function renderDurChart(){
-  const pairs = currentRows.filter(r=>r["Najavljeno trajanje (mjeseci)"]!=null && r["Stvarno trajanje (mjeseci)"]!=null);
+  const pairs = currentRows.filter(r=>r["promised_duration_months"]!=null && r["actual_duration_months"]!=null);
   const el = document.getElementById("dur-chart");
   if(!pairs.length){ el.innerHTML = '<div class="empty">Both promised and actual duration are needed to compare.</div>'; return; }
-  const maxP = Math.max.apply(null, pairs.map(r=>Math.max(r["Najavljeno trajanje (mjeseci)"], r["Stvarno trajanje (mjeseci)"])));
+  const maxP = Math.max.apply(null, pairs.map(r=>Math.max(r["promised_duration_months"], r["actual_duration_months"])));
   const rowsHtml = pairs.slice().reverse().map(r=>{
-    const p = r["Najavljeno trajanje (mjeseci)"], a = r["Stvarno trajanje (mjeseci)"];
+    const p = r["promised_duration_months"], a = r["actual_duration_months"];
     const d = (p-a).toFixed(1).replace(/\.0$/,"");
     return '<div style="display:grid;grid-template-columns:150px 1fr 74px;gap:12px;align-items:center">'
-      + '<div style="font-size:13px;line-height:1.2">'+esc(r["Klijent/Naziv"]||"—")+'</div>'
+      + '<div style="font-size:13px;line-height:1.2">'+esc(r["client_name"]||"—")+'</div>'
       + '<div style="position:relative;height:22px">'
       +   '<div style="position:absolute;top:0;left:0;height:9px;width:'+(p/maxP*100)+'%;border:1px dashed var(--color-accent-600)"></div>'
       +   '<div style="position:absolute;top:12px;left:0;height:10px;width:'+(a/maxP*100)+'%;background:var(--color-accent)"></div>'
       + '</div>'
       + '<div style="font-family:var(--font-heading);font-size:15px;text-align:right;color:var(--color-accent-800)">'+(p-a>=0?"−":"+")+Math.abs(d)+' mo</div></div>';
   }).join("");
-  const avg = (pairs.reduce((s,r)=>s+(r["Najavljeno trajanje (mjeseci)"]-r["Stvarno trajanje (mjeseci)"]),0)/pairs.length).toFixed(1);
+  const avg = (pairs.reduce((s,r)=>s+(r["promised_duration_months"]-r["actual_duration_months"]),0)/pairs.length).toFixed(1);
   el.innerHTML = '<div style="display:flex;flex-direction:column;gap:16px">'+rowsHtml+'</div>'
     + '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--color-divider);font-size:12px;color:var(--color-neutral-700)">'
     + 'Promised duration overstates the real engagement by '+avg+' months on average — start hunting the next lead that much earlier.</div>';
@@ -629,35 +646,35 @@ function renderRegister(){
   const rows = currentRows.filter(r=>{
     if(!matchesRegisterFilter(r)) return false;
     if(!q) return true;
-    return [r["Klijent/Naziv"],r["HH Firma"],r["Kontakt osoba (HH)"],r["SAP Fokus"],r["Status"]]
+    return [r["client_name"],r["hh_company"],r["hh_contact_person"],r["focus_area"],r["status"]]
       .filter(Boolean).join(" ").toLowerCase().includes(q);
   });
   document.getElementById("table-count").textContent = rows.length+" of "+currentRows.length+" records · click a row for detail";
   const el = document.getElementById("register");
   if(!rows.length){ el.innerHTML = '<div class="empty">No records for this filter.</div>'; return; }
   const body = rows.map(r=>{
-    const fit = fitInfo(r["Budžet klijenta (EUR)"]);
+    const fit = fitInfo(r["client_budget_eur"]);
     const isFishing = isFishingRow(r);
-    const isRealized = r["Status"]==="Realizovano";
-    const next = r["date:Najavljeni pocetak (po HH):start"] ? ["Promised start", r["date:Najavljeni pocetak (po HH):start"]]
-      : (r["date:Datum intervjua:start"] ? ["Interview", r["date:Datum intervjua:start"]]
-      : ["First contact", r["date:Datum prvog kontakta:start"]]);
-    const clientName = esc(r["Klijent/Naziv"]||"Untitled");
+    const isRealized = r["status"]==="delivered";
+    const next = r["promised_start_date"] ? ["Promised start", r["promised_start_date"]]
+      : (r["interview_at"] ? ["Interview", r["interview_at"]]
+      : ["First contact", r["first_contact_at"]]);
+    const clientName = esc(r["client_name"]||"Untitled");
     const clientLabel = isRealized
       ? '<span class="badge-success record-realized">'+clientName+'</span>'
       : '<span class="record-name'+(isFishing?' record-fishing':'')+'">'+clientName+'</span>';
-    const notesText = esc(r["Napomene"] || "");
-    const statusBadge = r["Status"] === "Odbijeno"
-      ? '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+' status-tooltip"'+(notesText ? ' data-tooltip="'+notesText+'"' : '')+' style="'+(notesText ? 'cursor:help;' : 'cursor:default;')+'">'+esc(sl(r["Status"]))+'</span>'
-      : '<span class="tag '+(TAGS[r["Status"]]||"tag-neutral")+'">'+esc(sl(r["Status"]))+'</span>';
+    const notesText = esc(r["notes"] || "");
+    const statusBadge = r["status"] === "rejected"
+      ? '<span class="tag '+(TAGS[r["status"]]||"tag-neutral")+' status-tooltip"'+(notesText ? ' data-tooltip="'+notesText+'"' : '')+' style="'+(notesText ? 'cursor:help;' : 'cursor:default;')+'">'+esc(sl(r["status"]))+'</span>'
+      : '<span class="tag '+(TAGS[r["status"]]||"tag-neutral")+'">'+esc(sl(r["status"]))+'</span>';
     return '<tr data-id="'+esc(r.id)+'" style="cursor:pointer">'
       + '<td><div style="display:flex;align-items:center;gap:6px">'+clientLabel+(isFishing?'<span class="badge-danger" style="margin-left:4px">fishing</span>':'')+'</div>'
-      +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["Radni mod"]||"—")+'</div></td>'
-      + '<td style="font-size:13px">'+esc(r["HH Firma"]||"direktno")+'<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["Kontakt osoba (HH)"]||"—")+'</div></td>'
-      + '<td style="font-size:13px">'+esc(r["SAP Fokus"]||"—")+'</td>'
+      +   '<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["work_mode"]||"—")+'</div></td>'
+      + '<td style="font-size:13px">'+esc(r["hh_company"]||"direktno")+'<div style="font-size:11.5px;color:var(--color-neutral-600)">'+esc(r["hh_contact_person"]||"—")+'</div></td>'
+      + '<td style="font-size:13px">'+esc(r["focus_area"]||"—")+'</td>'
       + '<td>'+statusBadge+'</td>'
-      + '<td style="font-size:13px;text-align:right">'+(r["Broj kontakata (pozivi/email)"] ?? "—")+'</td>'
-      + '<td><div style="font-size:13px">'+(r["Budžet klijenta (EUR)"]!=null?r["Budžet klijenta (EUR)"]+" €/d":"—")+'</div>'
+      + '<td style="font-size:13px;text-align:right">'+(r["contact_count"] ?? "—")+'</td>'
+      + '<td><div style="font-size:13px">'+(r["client_budget_eur"]!=null?r["client_budget_eur"]+" €/d":"—")+'</div>'
       +   '<div style="font-size:11px;color:'+fit.color+'">'+fit.label+'</div></td>'
       + '<td style="font-size:13px">'+fmtD(next[1])+'<div style="font-size:11.5px;color:var(--color-neutral-600)">'+next[0]+'</div></td></tr>';
   }).join("");
@@ -673,10 +690,10 @@ function renderAiTargets(){
   const sel = document.getElementById("ai-target-lead");
   if(!sel) return;
   const prev = sel.value;
-  const open = currentRows.filter(r=>OPEN_STATUSES.includes(r["Status"]));
+  const open = currentRows.filter(r=>OPEN_STATUSES.includes(r["status"]));
   sel.innerHTML = '<option value="">New inquiry</option>' + open.map(r=>{
-    const label = [r["HH Firma"],r["Klijent/Naziv"]].filter(Boolean).join(" → ") || "Untitled";
-    return '<option value="'+esc(r.id)+'">'+esc(label)+' ('+esc(sl(r["Status"]))+')</option>';
+    const label = [r["hh_company"],r["client_name"]].filter(Boolean).join(" → ") || "Untitled";
+    return '<option value="'+esc(r.id)+'">'+esc(label)+' ('+esc(sl(r["status"]))+')</option>';
   }).join("");
   if(open.some(r=>r.id===prev)) sel.value = prev;
 }
@@ -690,42 +707,42 @@ function dfield(label, inner){ return '<div class="dfield"><div class="l">'+labe
 function openDetail(id){
   const row = currentRows.find(r=>r.id===id);
   if(!row) return;
-  const fit = fitInfo(row["Budžet klijenta (EUR)"]);
+  const fit = fitInfo(row["client_budget_eur"]);
   document.getElementById("drawer").innerHTML =
     '<div style="display:flex;align-items:flex-start;gap:12px">'
-    + '<div style="flex:1"><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent)">Notion record</div>'
-    +   '<h3 style="margin:4px 0 6px">'+esc(row["Klijent/Naziv"]||"Bez naziva")+'</h3></div>'
+    + '<div style="flex:1"><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent)">Record</div>'
+    +   '<h3 style="margin:4px 0 6px">'+esc(row["client_name"]||"Bez naziva")+'</h3></div>'
     + '<button class="btn btn-secondary btn-icon" id="drawer-close">✕</button></div>'
     + '<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">'
-    +   '<span class="tag '+(TAGS[row["Status"]]||"tag-neutral")+'">'+esc(sl(row["Status"]))+'</span>'
-    +   '<span class="tag tag-neutral">'+esc(row["Radni mod"]||"work mode ?")+'</span>'
-    +   '<span class="tag tag-neutral">'+esc(row["Način dolaska"]||"route ?")+'</span>'
+    +   '<span class="tag '+(TAGS[row["status"]]||"tag-neutral")+'">'+esc(sl(row["status"]))+'</span>'
+    +   '<span class="tag tag-neutral">'+esc(row["work_mode"]||"work mode ?")+'</span>'
+    +   '<span class="tag tag-neutral">'+esc(row["channel"]||"route ?")+'</span>'
     +   '<span class="tag tag-neutral">'+esc(fit.label)+'</span></div>'
     + '<div class="dfields" style="margin-bottom:20px">'
-    +   dfield("Agency", '<input id="m-hh-firma" value="'+esc(row["HH Firma"]||"")+'">')
-    +   dfield("Contact person", '<input id="m-kontakt-osoba" value="'+esc(row["Kontakt osoba (HH)"]||"")+'">')
-    +   dfield("End client", '<input id="m-klijent" value="'+esc(row["Klijent/Naziv"]||"")+'">')
-    +   dfield("Status", '<select id="m-status">'+opts(STATUS_OPTIONS,row["Status"])+'</select>')
-    +   dfield("Work mode", '<select id="m-radni-mod">'+opts(RADNI_MOD_OPTIONS,row["Radni mod"])+'</select>')
-    +   dfield("Route", '<select id="m-nacin-dolaska">'+opts(NACIN_DOLASKA_OPTIONS,row["Način dolaska"])+'</select>')
-    +   dfield("SAP focus", '<select id="m-sap-fokus">'+opts(SAP_FOKUS_OPTIONS,row["SAP Fokus"])+'</select>')
-    +   dfield("Touches", '<input type="number" min="0" step="1" id="m-broj-kontakata" value="'+(row["Broj kontakata (pozivi/email)"] ?? "")+'">')
-    +   dfield("Client budget (EUR)", '<input type="number" min="0" step="1" id="m-budzet" value="'+(row["Budžet klijenta (EUR)"] ?? "")+'">')
-    +   dfield("Agreed rate (EUR)", '<input type="number" min="0" step="1" id="m-dogovoreni-rate" value="'+(row["Dogovoreni rate (EUR)"] ?? "")+'">')
-    +   dfield("Promised duration (mo)", '<input type="number" min="0" step="0.5" id="m-najavljeno" value="'+(row["Najavljeno trajanje (mjeseci)"] ?? "")+'">')
-    +   dfield("Actual duration (mo)", '<input type="number" min="0" step="0.5" id="m-stvarno" value="'+(row["Stvarno trajanje (mjeseci)"] ?? "")+'">')
-    +   dfield("First contact", '<input type="date" id="m-datum-prvi-kontakt" value="'+fmtDate(row["date:Datum prvog kontakta:start"])+'">')
-    +   dfield("Interview date", '<input type="date" id="m-datum-intervju" value="'+fmtDate(row["date:Datum intervjua:start"])+'">')
-    +   dfield("Agreement date", '<input type="date" id="m-datum-dogovor" value="'+fmtDate(row["date:Datum dogovora:start"])+'">')
-    +   dfield("Start / realized date", '<input type="date" id="m-datum-realizacija" value="'+fmtDate(row["date:Datum realizacije:start"])+'">')
-    +   dfield("Promised start (agency)", '<input type="date" id="m-najavljeni-pocetak" value="'+fmtDate(row["date:Najavljeni pocetak (po HH):start"])+'">')
+    +   dfield("Agency", '<input id="m-hh-firma" value="'+esc(row["hh_company"]||"")+'">')
+    +   dfield("Contact person", '<input id="m-kontakt-osoba" value="'+esc(row["hh_contact_person"]||"")+'">')
+    +   dfield("End client", '<input id="m-klijent" value="'+esc(row["client_name"]||"")+'">')
+    +   dfield("Status", '<select id="m-status">'+opts(STATUS_OPTIONS,row["status"])+'</select>')
+    +   dfield("Work mode", '<select id="m-radni-mod">'+opts(RADNI_MOD_OPTIONS,row["work_mode"])+'</select>')
+    +   dfield("Route", '<select id="m-nacin-dolaska">'+opts(NACIN_DOLASKA_OPTIONS,row["channel"])+'</select>')
+    +   dfield("SAP focus", '<select id="m-sap-fokus">'+opts(SAP_FOKUS_OPTIONS,row["focus_area"])+'</select>')
+    +   dfield("Touches", '<input type="number" min="0" step="1" id="m-broj-kontakata" value="'+(row["contact_count"] ?? "")+'">')
+    +   dfield("Client budget (EUR)", '<input type="number" min="0" step="1" id="m-budzet" value="'+(row["client_budget_eur"] ?? "")+'">')
+    +   dfield("Agreed rate (EUR)", '<input type="number" min="0" step="1" id="m-dogovoreni-rate" value="'+(row["agreed_rate_eur"] ?? "")+'">')
+    +   dfield("Promised duration (mo)", '<input type="number" min="0" step="0.5" id="m-najavljeno" value="'+(row["promised_duration_months"] ?? "")+'">')
+    +   dfield("Actual duration (mo)", '<input type="number" min="0" step="0.5" id="m-stvarno" value="'+(row["actual_duration_months"] ?? "")+'">')
+    +   dfield("First contact", '<input type="date" id="m-datum-prvi-kontakt" value="'+fmtDate(row["first_contact_at"])+'">')
+    +   dfield("Interview date", '<input type="date" id="m-datum-intervju" value="'+fmtDate(row["interview_at"])+'">')
+    +   dfield("Agreement date", '<input type="date" id="m-datum-dogovor" value="'+fmtDate(row["agreed_at"])+'">')
+    +   dfield("Start / realized date", '<input type="date" id="m-datum-realizacija" value="'+fmtDate(row["delivered_at"])+'">')
+    +   dfield("Promised start (agency)", '<input type="date" id="m-najavljeni-pocetak" value="'+fmtDate(row["promised_start_date"])+'">')
     +   dfield("Fishing", '<div class="v"><label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="checkbox" id="m-fishing" '
-    +     (row["Fishing (samo sondiranje)"]==="__YES__"?"checked":"")+' style="width:auto"> probing only</label></div>')
+    +     (row.is_fishing?"checked":"")+' style="width:auto"> probing only</label></div>')
     + '</div>'
     + '<h6 style="margin-bottom:8px">Scope</h6>'
-    + '<textarea id="m-scope" rows="5" style="width:100%;margin-bottom:16px;padding:10px;border:1px solid var(--color-divider);border-radius:8px;background:var(--color-bg);color:var(--color-text);font:inherit;resize:vertical">'+esc(row["Opis posla"]||"")+'</textarea>'
+    + '<textarea id="m-scope" rows="5" style="width:100%;margin-bottom:16px;padding:10px;border:1px solid var(--color-divider);border-radius:8px;background:var(--color-bg);color:var(--color-text);font:inherit;resize:vertical">'+esc(row["role_description"]||"")+'</textarea>'
     + '<h6 style="margin-bottom:8px">Notes</h6>'
-    + '<textarea id="m-notes" rows="5" style="width:100%;margin-bottom:22px;padding:10px;border:1px solid var(--color-divider);border-radius:8px;background:var(--color-bg);color:var(--color-text);font:inherit;resize:vertical">'+esc(row["Napomene"]||"")+'</textarea>'
+    + '<textarea id="m-notes" rows="5" style="width:100%;margin-bottom:22px;padding:10px;border:1px solid var(--color-divider);border-radius:8px;background:var(--color-bg);color:var(--color-text);font:inherit;resize:vertical">'+esc(row["notes"]||"")+'</textarea>'
     + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
     +   '<button class="btn btn-primary blueprint" id="m-save">Save<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i></button>'
     +   '<button class="btn btn-secondary" id="m-delete">Delete inquiry</button></div>'
@@ -743,25 +760,25 @@ async function saveDetail(id){
   if(!row){ statusEl.textContent = "Error: record not found."; statusEl.className="status-msg error"; return; }
   const val = i => document.getElementById(i).value;
   const partial = {
-    "HH Firma": val("m-hh-firma") || null,
-    "Kontakt osoba (HH)": val("m-kontakt-osoba") || null,
-    "Klijent/Naziv": val("m-klijent") || "Unknown client",
-    "Status": val("m-status"),
-    "Radni mod": val("m-radni-mod") || null,
-    "Način dolaska": val("m-nacin-dolaska") || null,
-    "SAP Fokus": val("m-sap-fokus") || null,
-    "Opis posla": val("m-scope") || null,
-    "Napomene": val("m-notes") || null,
-    "Fishing (samo sondiranje)": document.getElementById("m-fishing").checked ? "__YES__" : "__NO__",
+    "hh_company": val("m-hh-firma") || null,
+    "hh_contact_person": val("m-kontakt-osoba") || null,
+    "client_name": val("m-klijent") || "Unknown client",
+    "status": val("m-status"),
+    "work_mode": val("m-radni-mod") || null,
+    "channel": val("m-nacin-dolaska") || null,
+    "focus_area": val("m-sap-fokus") || null,
+    "role_description": val("m-scope") || null,
+    "notes": val("m-notes") || null,
+    "is_fishing": document.getElementById("m-fishing").checked,
   };
-  [["m-broj-kontakata","Broj kontakata (pozivi/email)"],["m-budzet","Budžet klijenta (EUR)"],
-   ["m-dogovoreni-rate","Dogovoreni rate (EUR)"],["m-najavljeno","Najavljeno trajanje (mjeseci)"],
-   ["m-stvarno","Stvarno trajanje (mjeseci)"]].forEach(([i,p])=>{
+  [["m-broj-kontakata","contact_count"],["m-budzet","client_budget_eur"],
+   ["m-dogovoreni-rate","agreed_rate_eur"],["m-najavljeno","promised_duration_months"],
+   ["m-stvarno","actual_duration_months"]].forEach(([i,p])=>{
     const v = val(i); partial[p] = v==="" ? null : Number(v);
   });
-  [["m-datum-prvi-kontakt","Datum prvog kontakta"],["m-datum-intervju","Datum intervjua"],["m-datum-dogovor","Datum dogovora"],
-   ["m-datum-realizacija","Datum realizacije"],["m-najavljeni-pocetak","Najavljeni pocetak (po HH)"]].forEach(([i,p])=>{
-    partial["date:"+p+":start"] = val(i) || null;
+  [["m-datum-prvi-kontakt","first_contact_at"],["m-datum-intervju","interview_at"],["m-datum-dogovor","agreed_at"],
+   ["m-datum-realizacija","delivered_at"],["m-najavljeni-pocetak","promised_start_date"]].forEach(([i,p])=>{
+    partial[p] = val(i) || null;
   });
   statusEl.textContent = "Saving…"; statusEl.className = "status-msg";
   try{
@@ -775,23 +792,23 @@ async function saveDetail(id){
 
 /* ── AI intake ───────────────────────────────────────────────────── */
 function mergeExtractedIntoRow(row, parsed, rawText){
-  if(parsed.hh_firma) row["HH Firma"] = parsed.hh_firma;
-  if(parsed.kontakt_osoba) row["Kontakt osoba (HH)"] = parsed.kontakt_osoba;
-  if(parsed.klijent) row["Klijent/Naziv"] = parsed.klijent;
-  if(!row["Način dolaska"] && parsed.hh_firma) row["Način dolaska"] = "Preko HH (posrednika)";
-  else if(!row["Način dolaska"] && parsed.klijent && !parsed.hh_firma) row["Način dolaska"] = "Direktno od klijenta";
-  if(["Remote","On-site","Hibrid"].includes(parsed.radni_mod)) row["Radni mod"] = parsed.radni_mod;
-  if(SAP_FOKUS_OPTIONS.includes(parsed.sap_fokus) && parsed.sap_fokus!=="") row["SAP Fokus"] = parsed.sap_fokus;
-  if(parsed.budzet!=null && parsed.budzet!=="") row["Budžet klijenta (EUR)"] = Number(parsed.budzet);
-  if(parsed.trajanje_mjeseci!=null && parsed.trajanje_mjeseci!=="") row["Najavljeno trajanje (mjeseci)"] = Number(parsed.trajanje_mjeseci);
-  if(parsed.najavljeni_pocetak && /^\d{4}-\d{2}-\d{2}$/.test(parsed.najavljeni_pocetak)) row["date:Najavljeni pocetak (po HH):start"] = parsed.najavljeni_pocetak;
-  if(parsed.opis) row["Opis posla"] = row["Opis posla"] ? row["Opis posla"]+"\n\n---\n"+parsed.opis : parsed.opis;
+  if(parsed.hh_firma) row["hh_company"] = parsed.hh_firma;
+  if(parsed.kontakt_osoba) row["hh_contact_person"] = parsed.kontakt_osoba;
+  if(parsed.klijent) row["client_name"] = parsed.klijent;
+  if(!row["channel"] && parsed.hh_firma) row["channel"] = "via_headhunter";
+  else if(!row["channel"] && parsed.klijent && !parsed.hh_firma) row["channel"] = "direct_client";
+  if(["remote","onsite","hybrid"].includes(parsed.radni_mod)) row["work_mode"] = parsed.radni_mod;
+  if(SAP_FOKUS_OPTIONS.includes(parsed.sap_fokus) && parsed.sap_fokus!=="") row["focus_area"] = parsed.sap_fokus;
+  if(parsed.budzet!=null && parsed.budzet!=="") row["client_budget_eur"] = Number(parsed.budzet);
+  if(parsed.trajanje_mjeseci!=null && parsed.trajanje_mjeseci!=="") row["promised_duration_months"] = Number(parsed.trajanje_mjeseci);
+  if(parsed.najavljeni_pocetak && /^\d{4}-\d{2}-\d{2}$/.test(parsed.najavljeni_pocetak)) row["promised_start_date"] = parsed.najavljeni_pocetak;
+  if(parsed.opis) row["role_description"] = row["role_description"] ? row["role_description"]+"\n\n---\n"+parsed.opis : parsed.opis;
   const dodatak = parsed.napomene || rawText;
   if(dodatak){
     const stamp = "["+new Date().toISOString().substring(0,10)+"] "+dodatak;
-    row["Napomene"] = row["Napomene"] ? row["Napomene"]+"\n\n"+stamp : stamp;
+    row["notes"] = row["notes"] ? row["notes"]+"\n\n"+stamp : stamp;
   }
-  row["Broj kontakata (pozivi/email)"] = (row["Broj kontakata (pozivi/email)"]||0)+1;
+  row["contact_count"] = (row["contact_count"]||0)+1;
   return row;
 }
 
@@ -812,32 +829,32 @@ async function handleAiSave(){
       if(!row) throw new Error("The selected inquiry no longer exists — refresh the page.");
       const merged = mergeExtractedIntoRow(Object.assign({}, row), parsed, text);
       await patchRow(targetId, merged);
-      statusEl.textContent = "Enriched — "+(row["Klijent/Naziv"]||row["HH Firma"]||"inquiry")+".";
+      statusEl.textContent = "Enriched — "+(row["client_name"]||row["hh_company"]||"inquiry")+".";
       statusEl.className = "status-msg ok";
       textEl.value = ""; document.getElementById("ai-target-lead").value = "";
       return;
     }
 
     const props = {
-      "Klijent/Naziv": parsed.klijent || parsed.hh_firma || "Unknown client",
-      "HH Firma": parsed.hh_firma || null,
-      "Kontakt osoba (HH)": parsed.kontakt_osoba || null,
-      "Izvor": "Email", "Status": "Novo",
-      "Opis posla": parsed.opis || text,
-      "Napomene": parsed.napomene || null,
-      "Fishing (samo sondiranje)": "__NO__",
-      "Broj kontakata (pozivi/email)": 1,
-      "date:Datum prvog kontakta:start": new Date().toISOString().substring(0,10),
-      "Način dolaska": parsed.hh_firma ? "Preko HH (posrednika)" : "Direktno od klijenta"
+      "client_name": parsed.klijent || parsed.hh_firma || "Unknown client",
+      "hh_company": parsed.hh_firma || null,
+      "hh_contact_person": parsed.kontakt_osoba || null,
+      "source": "email", "status": "new",
+      "role_description": parsed.opis || text,
+      "notes": parsed.napomene || null,
+      "is_fishing": false,
+      "contact_count": 1,
+      "first_contact_at": new Date().toISOString().substring(0,10),
+      "channel": parsed.hh_firma ? "via_headhunter" : "direct_client"
     };
-    if(["Remote","On-site","Hibrid"].includes(parsed.radni_mod)) props["Radni mod"] = parsed.radni_mod;
-    if(SAP_FOKUS_OPTIONS.includes(parsed.sap_fokus) && parsed.sap_fokus!=="") props["SAP Fokus"] = parsed.sap_fokus;
-    if(parsed.budzet!=null && parsed.budzet!=="") props["Budžet klijenta (EUR)"] = Number(parsed.budzet);
-    if(parsed.trajanje_mjeseci!=null && parsed.trajanje_mjeseci!=="") props["Najavljeno trajanje (mjeseci)"] = Number(parsed.trajanje_mjeseci);
-    if(parsed.najavljeni_pocetak && /^\d{4}-\d{2}-\d{2}$/.test(parsed.najavljeni_pocetak)) props["date:Najavljeni pocetak (po HH):start"] = parsed.najavljeni_pocetak;
+    if(["remote","onsite","hybrid"].includes(parsed.radni_mod)) props["work_mode"] = parsed.radni_mod;
+    if(SAP_FOKUS_OPTIONS.includes(parsed.sap_fokus) && parsed.sap_fokus!=="") props["focus_area"] = parsed.sap_fokus;
+    if(parsed.budzet!=null && parsed.budzet!=="") props["client_budget_eur"] = Number(parsed.budzet);
+    if(parsed.trajanje_mjeseci!=null && parsed.trajanje_mjeseci!=="") props["promised_duration_months"] = Number(parsed.trajanje_mjeseci);
+    if(parsed.najavljeni_pocetak && /^\d{4}-\d{2}-\d{2}$/.test(parsed.najavljeni_pocetak)) props["promised_start_date"] = parsed.najavljeni_pocetak;
 
     const created = await createInquiry(props);
-    statusEl.textContent = "Saved — "+(created["Klijent/Naziv"]||"new inquiry")+".";
+    statusEl.textContent = "Saved — "+(created["client_name"]||"new inquiry")+".";
     statusEl.className = "status-msg ok";
     textEl.value = "";
   }catch(err){
@@ -863,8 +880,47 @@ document.getElementById("register-filter").addEventListener("click", e=>{
 });
 document.getElementById("table-search").addEventListener("input", e=>{ tableQuery = e.target.value; renderRegister(); });
 
-loadConfig();
-loadRows(false);
+let sb = null;
+
+async function boot(){
+  const cfg = await fetch("/api/config").then(r=>r.json());
+  if(!cfg.supabaseUrl || !cfg.supabaseKey){
+    document.body.innerHTML = "<p style='padding:40px'>Supabase nije konfiguriran.</p>";
+    return;
+  }
+  sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ start(session); } else { showLogin(); }
+}
+
+function showLogin(){
+  document.getElementById("auth-gate").style.display = "flex";
+}
+
+async function start(session){
+  accessToken = session.access_token;
+  document.getElementById("auth-gate").style.display = "none";
+  await loadConfig();
+  await loadRows(false);
+}
+
+document.getElementById("auth-btn").addEventListener("click", async ()=>{
+  const err = document.getElementById("auth-err");
+  err.textContent = "";
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: document.getElementById("auth-email").value.trim(),
+    password: document.getElementById("auth-pass").value,
+  });
+  if(error){ err.textContent = error.message; return; }
+  start(data.session);
+});
+
+document.getElementById("auth-pass").addEventListener("keydown", e=>{
+  if(e.key === "Enter") document.getElementById("auth-btn").click();
+});
+
+boot();
 </script>
 <script>
 (function () {
