@@ -4,6 +4,6 @@
   "private": true,
   "description": "Freelance Ledger — standalone web verzija Freelance Evidencija dashboarda, backed direktno na Notion API, deploy na Vercel.",
   "scripts": {
-    "dev": "vercel dev"
+   
   }
 }
